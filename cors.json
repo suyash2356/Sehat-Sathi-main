@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://3000-firebase-sehat-sathigit-1763123823617.cluster-zkm2jrwbnbd4awuedc2alqxrpk.cloudworkstations.dev"],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]

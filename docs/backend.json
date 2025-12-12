@@ -1,0 +1,150 @@
+{
+  "entities": {
+    "userProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "relationship": {
+            "type": "string",
+            "description": "The user's relationship to the primary account holder."
+        },
+        "bio": {
+            "type": "string",
+            "description": "A short biography of the user."
+        },
+        "bloodGroup": {
+            "type": "string",
+            "description": "The user's blood group."
+        },
+        "allergies": {
+            "type": "string",
+            "description": "A list of the user's allergies."
+        },
+        "chronicDiseases": {
+            "type": "string",
+            "description": "A list of the user's chronic diseases."
+        }
+      },
+      "required": ["name", "email", "relationship"]
+    },
+    "healthDocument": {
+        "title": "Health Document",
+        "description": "Represents a health document uploaded by a user.",
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string",
+                "description": "The title of the document."
+            },
+            "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The URL of the uploaded document."
+            },
+            "path": {
+                "type": "string",
+                "description": "The storage path of the document."
+            },
+            "uploadedAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The timestamp when the document was uploaded."
+            },
+            "status": {
+                "type": "string",
+                "enum": ["Pending", "Verified"],
+                "description": "The verification status of the document."
+            }
+        },
+        "required": ["title", "url", "path", "uploadedAt", "status"]
+    },
+    "insuranceDocument": {
+        "title": "Insurance Document",
+        "description": "Represents an insurance document uploaded by a user.",
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string",
+                "description": "The title of the document."
+            },
+            "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "The URL of the uploaded document."
+            },
+            "path": {
+                "type": "string",
+                "description": "The storage path of the document."
+            },
+            "uploadedAt": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The timestamp when the document was uploaded."
+            }
+        },
+        "required": ["title", "url", "path", "uploadedAt"]
+    },
+    "appointment": {
+        "title": "Appointment",
+        "description": "Represents a consultation appointment.",
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "string"
+            },
+            "phone": {
+                "type": "string"
+            },
+            "issue": {
+                "type": "string"
+            },
+            "appointmentType": {
+                "type": "string"
+            },
+            "hospital": {
+                "type": "string"
+            },
+            "status": {
+                "type": "string",
+                "enum": ["pending", "active", "completed"]
+            }
+        },
+        "required": ["name", "phone", "issue", "appointmentType", "status"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/userProfile" },
+      "description": "Stores user profile information."
+    },
+    "/users/{userId}/familyMembers/{memberId}": {
+        "schema": { "$ref": "#/entities/userProfile" },
+        "description": "Stores health profiles for a user's family members."
+    },
+    "/users/{userId}/documents/{documentId}": {
+        "schema": { "$ref": "#/entities/healthDocument" },
+        "description": "Stores metadata for user-uploaded health documents."
+    },
+    "/users/{userId}/insuranceDocuments/{documentId}": {
+        "schema": { "$ref": "#/entities/insuranceDocument" },
+        "description": "Stores metadata for user-uploaded insurance documents."
+    },
+    "/appointments/{appointmentId}": {
+        "schema": { "$ref": "#/entities/appointment" },
+        "description": "Stores information about video call appointments."
+    }
+  }
+}
