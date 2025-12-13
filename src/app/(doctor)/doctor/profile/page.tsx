@@ -18,6 +18,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Upload, X, FileText, UserCircle, Save } from 'lucide-react';
 import { uploadToSupabase } from '@/lib/supabase';
+import { locationData } from '@/lib/location-data';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Schema Definitions
 const documentSchema = z.object({
@@ -29,7 +31,9 @@ const documentSchema = z.object({
 const profileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
   specialization: z.string().min(2, "Specialization is required."),
-  location: z.string().min(2, "Location is required."),
+  state: z.string().min(1, "State is required."),
+  district: z.string().min(1, "District is required."),
+  village: z.string().min(1, "Village/Area is required."),
   experience: z.preprocess((val) => {
     if (typeof val === 'string') {
       const parsed = parseInt(val, 10);
@@ -61,7 +65,9 @@ export default function DoctorProfilePage() {
     defaultValues: {
       fullName: '',
       specialization: '',
-      location: '',
+      state: '',
+      district: '',
+      village: '',
       experience: 0,
       bio: '',
       profilePicture: '',
@@ -70,6 +76,10 @@ export default function DoctorProfilePage() {
       isProfileComplete: false,
     },
   });
+
+  // Watch for dependent dropdowns
+  const selectedState = form.watch('state');
+  const selectedDistrict = form.watch('district');
 
   const { fields: certifications, append: appendCertification, remove: removeCertification } = useFieldArray({ control: form.control, name: "certifications" });
   const { fields: licenses, append: appendLicense, remove: removeLicense } = useFieldArray({ control: form.control, name: "licenses" });
@@ -85,7 +95,9 @@ export default function DoctorProfilePage() {
         form.reset({
           fullName: data.fullName || '',
           specialization: data.specialization || '',
-          location: data.location || '',
+          state: data.state || '',
+          district: data.district || '',
+          village: data.village || '',
           experience: data.experience || 0,
           bio: data.bio || '',
           profilePicture: data.profilePicture || '',
@@ -130,6 +142,29 @@ export default function DoctorProfilePage() {
     }
   }
 
+  // Use the API key from env
+  const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  const getCoordinates = async (address: string) => {
+    try {
+      if (!GOOGLE_MAPS_API_KEY) {
+        console.warn("No Google Maps API Key found");
+        return null;
+      }
+      const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`);
+      const data = await response.json();
+      if (data.status === 'OK' && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        return { lat: location.lat, lng: location.lng };
+      }
+      console.warn("Geocoding failed:", data.status);
+      return null;
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      return null;
+    }
+  };
+
   const onSubmit = async (data: ProfileFormValues) => {
     if (!user || !db) return;
     setIsSaving(true);
@@ -144,9 +179,27 @@ export default function DoctorProfilePage() {
         data.profilePicture = photoURL;
       }
 
-      // Mark profile as complete
-      data.isProfileComplete = true;
-      await setDoc(docRef, data, { merge: true });
+      // Geocode the location
+      const fullAddress = `${data.village}, ${data.district}, ${data.state}, India`;
+      const coords = await getCoordinates(fullAddress);
+
+      const saveData: any = {
+        ...data,
+        isProfileComplete: true,
+      };
+
+      if (coords) {
+        saveData.hospitalLocation = coords;
+        saveData.hospitalAddress = fullAddress; // Ensure this exists for MapPage
+      } else {
+        // Fallback if geocoding fails? Use some default or don't set it.
+        // MapPage requires it, so maybe warn user?
+        // For now, let's try to save even if null, maybe MapPage will update to handle it?
+        // Or we can save a default?
+        console.warn("Could not geocode address.");
+      }
+
+      await setDoc(docRef, saveData, { merge: true });
       toast({ title: "Profile Updated", description: "Your profile has been saved successfully." });
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -198,7 +251,48 @@ export default function DoctorProfilePage() {
                     <FormField control={form.control} name="fullName" render={({ field }) => <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name="specialization" render={({ field }) => <FormItem><FormLabel>Specialization</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                   </div>
-                  <FormField control={form.control} name="location" render={({ field }) => <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="City, Country" {...field} /></FormControl><FormMessage /></FormItem>} />
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <FormField control={form.control} name="state" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State</FormLabel>
+                        <Select onValueChange={(val) => { field.onChange(val); form.setValue('district', ''); form.setValue('village', ''); }} defaultValue={field.value} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select State" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {Object.keys(locationData).map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="district" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>District</FormLabel>
+                        <Select onValueChange={(val) => { field.onChange(val); form.setValue('village', ''); }} defaultValue={field.value} value={field.value} disabled={!selectedState}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {selectedState && (locationData as any)[selectedState] && Object.keys((locationData as any)[selectedState]).map(dist => <SelectItem key={dist} value={dist}>{dist}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="village" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Village/Area</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={!selectedDistrict}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select Area" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {selectedState && selectedDistrict && (locationData as any)[selectedState]?.[selectedDistrict]?.map((vil: string) => <SelectItem key={vil} value={vil}>{vil}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
                     <FormField control={form.control} name="experience" render={({ field }) => <FormItem><FormLabel>Years of Experience</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name="bio" render={({ field }) => <FormItem><FormLabel>Biography</FormLabel><FormControl><Textarea {...field} rows={5} placeholder="Tell patients a little about yourself..." /></FormControl><FormMessage /></FormItem>} />

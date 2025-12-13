@@ -112,27 +112,28 @@ export default function MapPage() {
         const fetchedDoctors: MapItem[] = [];
         snapshot.forEach(doc => {
           const data = doc.data();
-          // Ensure we have location data
-          if (data.hospitalLocation && data.hospitalLocation.lat && data.hospitalLocation.lng) {
-            fetchedDoctors.push({
-              id: doc.id,
-              name: data.name || 'Unknown Doctor',
-              email: data.email,
-              hospitalLocation: data.hospitalLocation,
-              lat: data.hospitalLocation.lat,
-              lng: data.hospitalLocation.lng,
-              isVerified: data.isVerified,
-              availability: data.availability || { dates: [], timeSlots: [] },
-              specialization: data.specialization || 'General',
-              hospitalName: data.hospitalName || 'Clinic',
-              hospitalAddress: data.hospitalAddress || 'Address not available',
-              address: data.hospitalAddress || 'Address not available', // Map to address for UI
-              state: data.state || 'Maharashtra', // Default or fetch
-              district: data.district,
-              village: data.village,
-              contact: data.contact, // Add this line
-            });
-          }
+          // Allow doctor even if location is missing (fallback to default)
+          const fallbackLat = 20.5937;
+          const fallbackLng = 78.9629;
+
+          fetchedDoctors.push({
+            id: doc.id,
+            name: data.fullName || data.name || 'Unknown Doctor', // Support both naming conventions
+            email: data.email,
+            hospitalLocation: data.hospitalLocation || { lat: fallbackLat, lng: fallbackLng },
+            lat: data.hospitalLocation?.lat || fallbackLat,
+            lng: data.hospitalLocation?.lng || fallbackLng,
+            isVerified: data.isVerified,
+            availability: data.availability || { dates: [], timeSlots: [] },
+            specialization: data.specialization || 'General',
+            hospitalName: data.hospitalName || 'Clinic',
+            hospitalAddress: data.hospitalAddress || `${data.village || ''}, ${data.district || ''}, ${data.state || ''}`,
+            address: data.hospitalAddress || `${data.village || ''}, ${data.district || ''}, ${data.state || ''}`,
+            state: data.state || 'Maharashtra',
+            district: data.district,
+            village: data.village,
+            contact: data.contact || "N/A",
+          });
         });
 
         // Add government hospitals to the list
