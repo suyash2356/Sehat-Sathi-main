@@ -188,6 +188,20 @@ export function useVideoCall() {
     if (webrtcService.current) webrtcService.current.endCall();
     if (signalingService.current) signalingService.current.endCall();
 
+    // Mark appointment as completed
+    try {
+      if (state.callData?.id) {
+        const { doc, updateDoc } = await import('firebase/firestore');
+        const { db } = await import('@/lib/firebase');
+        await updateDoc(doc(db, 'appointments', state.callData.id), {
+          status: 'completed'
+        });
+        console.log("Appointment marked as completed");
+      }
+    } catch (err) {
+      console.error("Failed to mark appointment as completed", err);
+    }
+
     setState(prev => ({
       ...prev,
       isConnected: false,
@@ -199,7 +213,7 @@ export function useVideoCall() {
 
     toast({ title: 'Call Ended', description: 'Your consultation has ended.' });
     router.push('/map');
-  }, [toast, router]);
+  }, [toast, router, state.callData]);
 
   // Auto-initialize call if callId is in URL and user is loaded
   useEffect(() => {

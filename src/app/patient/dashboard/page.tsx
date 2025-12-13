@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { LogOut, AlertTriangle, User, Briefcase, MapPin } from 'lucide-react';
 import Link from 'next/link'; // Import Link
 
-// Data structures for Patient and Doctor
+// Data structures for Patient, Doctor, Appointment
 interface PatientData {
   uid: string;
   email: string;
@@ -26,6 +26,16 @@ interface DoctorData {
   location?: string;
 }
 
+interface Appointment {
+  id: string;
+  doctorId: string;
+  doctorName: string;
+  scheduledTime: any; // Timestamp
+  status: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
+  appointmentType?: string;
+  issue?: string;
+}
+
 export default function PatientDashboardPage() {
   const auth = useAuth();
   const db = useFirestore();
@@ -34,9 +44,20 @@ export default function PatientDashboardPage() {
 
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [doctors, setDoctors] = useState<DoctorData[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState('');
+
+  // Check if join button should be enabled
+  const isJoinEnabled = (scheduledTime: any) => {
+    if (!scheduledTime) return false;
+    const now = new Date();
+    const scheduleDate = scheduledTime.toDate();
+    const diffInMinutes = (scheduleDate.getTime() - now.getTime()) / 60000;
+    // Enabled if within 2 minutes before schedule (or passed schedule but not completed)
+    return diffInMinutes <= 2;
+  };
 
   useEffect(() => {
     if (!auth || !db) return;
@@ -45,6 +66,7 @@ export default function PatientDashboardPage() {
       if (user) {
         setLoading(true);
         try {
+          // 1. Fetch Patient Profile
           const patientRef = doc(db, 'patients', user.uid);
           const patientSnap = await getDoc(patientRef);
 
@@ -57,10 +79,19 @@ export default function PatientDashboardPage() {
             return;
           }
 
+          // 2. Fetch Doctors
           const doctorsQuery = query(collection(db, "doctors"), where("isProfileComplete", "==", true));
           const doctorsSnapshot = await getDocs(doctorsQuery);
           const fetchedDoctors = doctorsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as DoctorData));
           setDoctors(fetchedDoctors);
+
+          // 3. Fetch Appointments
+          const appQuery = query(collection(db, "appointments"), where("patientId", "==", user.uid));
+          const appSnapshot = await getDocs(appQuery);
+          const fetchedAppointments = appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+          // Sort by date (descending)
+          fetchedAppointments.sort((a, b) => b.scheduledTime?.seconds - a.scheduledTime?.seconds);
+          setAppointments(fetchedAppointments);
 
         } catch (err: any) {
           console.error("Dashboard loading error:", err);
@@ -174,12 +205,53 @@ export default function PatientDashboardPage() {
           </div>
 
           <div className="lg:col-span-1">
-            <Card>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle>My Appointments</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-center text-gray-500">You have no upcoming appointments.</p>
+                {appointments.length > 0 ? (
+                  <ul className="space-y-4">
+                    {appointments.map(app => (
+                      <li key={app.id} className="p-4 bg-white dark:bg-gray-800 rounded-lg border shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${app.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                              app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                app.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                            }`}>
+                            {app.status.toUpperCase()}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {app.scheduledTime?.toDate().toLocaleDateString()} {app.scheduledTime?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-md mb-1">{app.doctorName}</h4>
+                        {app.issue && <p className="text-sm text-gray-600 mb-3 line-clamp-2">{app.issue}</p>}
+
+                        {app.status === 'accepted' && (
+                          <div className="mt-2">
+                            <Button
+                              className="w-full"
+                              size="sm"
+                              disabled={!isJoinEnabled(app.scheduledTime)}
+                              asChild={isJoinEnabled(app.scheduledTime)}
+                            >
+                              {isJoinEnabled(app.scheduledTime) ? (
+                                <Link href={`/video-call?callId=${app.id}`}>Join Video Call</Link>
+                              ) : (
+                                <span>Join in {Math.max(0, Math.ceil((app.scheduledTime.toDate().getTime() - new Date().getTime()) / 60000) - 2)}m</span>
+                              )}
+                            </Button>
+                            {!isJoinEnabled(app.scheduledTime) && <p className="text-[10px] text-gray-400 text-center mt-1">Available 2 mins before.</p>}
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-center text-gray-500 py-8">You have no upcoming appointments.</p>
+                )}
               </CardContent>
             </Card>
           </div>
