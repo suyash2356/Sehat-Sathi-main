@@ -40,12 +40,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
-        {/* Favicon and app icons - replace files in `public/` with your provided logo */}
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
-        <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/favicon-512.png" />
-        <link rel="apple-touch-icon" href="/favicon-192.png" />
+
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#0ea5a1" />
       </head>

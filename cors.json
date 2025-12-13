@@ -1,8 +1,16 @@
 [
   {
-    "origin": ["https://3000-firebase-sehat-sathigit-1763123823617.cluster-zkm2jrwbnbd4awuedc2alqxrpk.cloudworkstations.dev"],
-    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    "responseHeader": ["Content-Type", "Authorization"],
+    "origin": [
+      "http://localhost:3000",
+      "https://sehat-sathi.vercel.app"
+    ],
+    "method": [
+      "GET",
+      "PUT",
+      "POST",
+      "DELETE",
+      "HEAD"
+    ],
     "maxAgeSeconds": 3600
   }
 ]

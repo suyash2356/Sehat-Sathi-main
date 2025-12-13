@@ -38,6 +38,7 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@radix-ui/react-visually-hidden": "^1.1.0",
     "@react-google-maps/api": "^2.20.7",
+    "@supabase/supabase-js": "^2.87.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",

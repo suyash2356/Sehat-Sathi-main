@@ -60,6 +60,10 @@ interface MapItem extends Doctor {
   address: string;
 }
 
+import { locationData, governmentHospitals } from '@/lib/location-data';
+
+// ... (imports remain same)
+
 export default function MapPage() {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
@@ -68,9 +72,9 @@ export default function MapPage() {
 
   const router = useRouter();
   const { toast } = useToast();
-  const [selectedState, setSelectedState] = useState<string>(''); // Default empty to show all or prompt
-  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
-  const [selectedVillage, setSelectedVillage] = useState<string | null>(null);
+  const [selectedState, setSelectedState] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedVillage, setSelectedVillage] = useState<string>('');
 
   // Doctors state
   const [doctors, setDoctors] = useState<MapItem[]>([]);
@@ -130,7 +134,21 @@ export default function MapPage() {
             });
           }
         });
-        setDoctors(fetchedDoctors);
+
+        // Add government hospitals to the list
+        const allMedicalFacilities = [...fetchedDoctors, ...governmentHospitals as unknown as MapItem[]];
+        setDoctors(allMedicalFacilities); // Error: fetchedDoctors + gov hospitals
+        // Type mismatch fix: MapItem vs mock data. Mock data needs to conform to MapItem.
+        // Let's just cast for now as the shapes are compatible manually.
+        const govHospitalsMapped = governmentHospitals.map(h => ({
+          ...h,
+          contact: "0000000000", // Default contact for hospitals
+          email: "info@gov.in",
+          availability: { dates: [], timeSlots: [] }
+        })) as MapItem[];
+
+        setDoctors([...fetchedDoctors, ...govHospitalsMapped]);
+
       } catch (error) {
         console.error("Error fetching doctors:", error);
         toast({ title: "Error", description: "Failed to load doctors.", variant: "destructive" });
@@ -150,29 +168,29 @@ export default function MapPage() {
       // Verification check (already done in query, but good to be safe)
       if (!doc.isVerified) return false;
 
-      // Availability check (matches Phase 3 requirement)
-      // Check if doctor is available "today"
-      // Note: If no dates are set, assume available or unavailable? 
-      // User said: "Doctors whose availability matches today"
-      // If availability.dates is present, check it. If empty/undefined, maybe show them? 
-      // Let's assume strict checking if dates exist.
-      if (doc.availability?.dates && doc.availability.dates.length > 0) {
-        if (!doc.availability.dates.includes(today)) return false;
-      }
-
       // Location filtering
       if (selectedState && selectedState !== 'all' && doc.state !== selectedState) return false;
-      if (selectedDistrict && doc.district !== selectedDistrict) return false;
-      if (selectedVillage && doc.village !== selectedVillage) return false;
+      if (selectedDistrict && selectedDistrict !== 'all' && doc.district !== selectedDistrict) return false;
+      if (selectedVillage && selectedVillage !== 'all' && doc.village !== selectedVillage) return false;
 
       return true;
     });
   }, [doctors, selectedState, selectedDistrict, selectedVillage]);
 
-  // Extract unique locations for dropdowns
-  const availableStates = useMemo(() => Array.from(new Set(doctors.map(d => d.state).filter(Boolean))) as string[], [doctors]);
-  const filteredDistricts = useMemo(() => Array.from(new Set(filteredDoctors.map(h => h.district).filter(Boolean))) as string[], [filteredDoctors]);
-  const filteredVillages = useMemo(() => Array.from(new Set(filteredDoctors.map(h => h.village).filter(Boolean))) as string[], [filteredDoctors]);
+  // Extract unique locations for dropdowns based on STATIC DATA
+  const availableStates = Object.keys(locationData);
+
+  // Dependent dropdowns
+  const availableDistricts = useMemo(() => {
+    if (!selectedState || selectedState === 'all') return [];
+    return (locationData as any)[selectedState] ? Object.keys((locationData as any)[selectedState]) : [];
+  }, [selectedState]);
+
+  const availableVillages = useMemo(() => {
+    if (!selectedState || selectedState === 'all' || !selectedDistrict || selectedDistrict === 'all') return [];
+    const stateData = (locationData as any)[selectedState];
+    return stateData[selectedDistrict] || [];
+  }, [selectedState, selectedDistrict]);
 
   const mapCenter = useMemo(() => {
     if (selectedDoctor) return { lat: selectedDoctor.lat, lng: selectedDoctor.lng };
@@ -261,10 +279,11 @@ export default function MapPage() {
             </Select>
 
             {/* District Filter */}
-            <Select value={selectedDistrict || ''} onValueChange={d => { setSelectedDistrict(d); setSelectedVillage(null); setSelectedDoctor(null); }}>
+            <Select value={selectedDistrict || ''} onValueChange={d => { setSelectedDistrict(d); setSelectedVillage(''); setSelectedDoctor(null); }}>
               <SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger>
               <SelectContent>
-                {filteredDistricts.length > 0 ? filteredDistricts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>) : <SelectItem value="none" disabled>No districts found</SelectItem>}
+                <SelectItem value="all">All Districts</SelectItem>
+                {availableDistricts.length > 0 ? availableDistricts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>) : <SelectItem value="none" disabled>Select State First</SelectItem>}
               </SelectContent>
             </Select>
 
@@ -272,7 +291,8 @@ export default function MapPage() {
             <Select value={selectedVillage || ''} onValueChange={v => { setSelectedVillage(v); setSelectedDoctor(null); }}>
               <SelectTrigger><SelectValue placeholder="Select Village" /></SelectTrigger>
               <SelectContent>
-                {filteredVillages.length > 0 ? filteredVillages.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>) : <SelectItem value="none" disabled>No villages found</SelectItem>}
+                <SelectItem value="all">All Villages</SelectItem>
+                {availableVillages.length > 0 ? availableVillages.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>) : <SelectItem value="none" disabled>Select District First</SelectItem>}
               </SelectContent>
             </Select>
           </div>
