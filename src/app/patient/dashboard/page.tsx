@@ -8,7 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { LogOut, AlertTriangle, User, Briefcase } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { LogOut, AlertTriangle, User, Briefcase, MapPin } from 'lucide-react';
 import Link from 'next/link'; // Import Link
 
 // Data structures for Patient and Doctor
@@ -22,6 +23,7 @@ interface DoctorData {
   uid: string;
   fullName: string;
   specialization: string;
+  location?: string;
 }
 
 export default function PatientDashboardPage() {
@@ -34,6 +36,7 @@ export default function PatientDashboardPage() {
   const [doctors, setDoctors] = useState<DoctorData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState('');
 
   useEffect(() => {
     if (!auth || !db) return;
@@ -80,6 +83,10 @@ export default function PatientDashboardPage() {
     }
   };
 
+  const filteredDoctors = doctors.filter(doctor =>
+    !locationFilter || (doctor.location && doctor.location.toLowerCase().includes(locationFilter.toLowerCase()))
+  );
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading Your Dashboard...</div>;
   }
@@ -119,23 +126,36 @@ export default function PatientDashboardPage() {
               <CardHeader>
                 <CardTitle>Book a Consultation</CardTitle>
                 <CardDescription>Choose from our list of available specialists.</CardDescription>
+                <div className="mt-4">
+                  <Input
+                    placeholder="Filter by location (e.g. New York)"
+                    value={locationFilter}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocationFilter(e.target.value)}
+                  />
+                </div>
               </CardHeader>
               <CardContent>
-                {doctors.length > 0 ? (
+                {filteredDoctors.length > 0 ? (
                   <ul className="space-y-4">
-                    {doctors.map((doctor) => (
+                    {filteredDoctors.map((doctor) => (
                       <li key={doctor.uid} className="p-4 border rounded-lg flex items-center justify-between transition-all hover:bg-gray-50 dark:hover:bg-gray-800">
                         <div className="flex items-center space-x-4">
-                           <Avatar className="h-12 w-12">
-                               <AvatarFallback>{doctor.fullName.charAt(0)}</AvatarFallback>
-                           </Avatar>
-                           <div>
-                               <p className="font-bold text-lg">Dr. {doctor.fullName}</p>
-                               <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
-                                <Briefcase className="h-4 w-4 mr-2"/>
-                                {doctor.specialization}
-                               </p>
-                           </div>
+                          <Avatar className="h-12 w-12">
+                            <AvatarFallback>{doctor.fullName.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-bold text-lg">Dr. {doctor.fullName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                              <Briefcase className="h-4 w-4 mr-2" />
+                              {doctor.specialization}
+                            </p>
+                            {doctor.location && (
+                              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
+                                <MapPin className="h-4 w-4 mr-2" />
+                                {doctor.location}
+                              </p>
+                            )}
+                          </div>
                         </div>
                         {/* Updated Button to be a Link */}
                         <Link href={`/patient/book/${doctor.uid}`} passHref>

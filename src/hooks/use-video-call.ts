@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WebRTCService, defaultWebRTCConfig, CallData } from '@/lib/webrtc';
-import { CallScheduler } from '@/lib/call-scheduler';
-import { SignalingService, SignalingMessage } from '@/lib/signaling';
+import { SignalingService } from '@/lib/signaling';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/use-user';
 
 export interface VideoCallState {
   isConnected: boolean;
@@ -22,7 +22,8 @@ export function useVideoCall() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  
+  const { user } = useUser(); // Get current user to determine role
+
   const [state, setState] = useState<VideoCallState>({
     isConnected: false,
     isConnecting: false,
@@ -35,13 +36,11 @@ export function useVideoCall() {
   });
 
   const webrtcService = useRef<WebRTCService | null>(null);
-  const callScheduler = useRef<CallScheduler | null>(null);
   const signalingService = useRef<SignalingService | null>(null);
 
   useEffect(() => {
-    callScheduler.current = CallScheduler.getInstance();
     signalingService.current = SignalingService.getInstance();
-    
+
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -58,93 +57,118 @@ export function useVideoCall() {
   }, []);
 
   const initializeCall = useCallback(async (callId: string) => {
+    if (!user) {
+      console.warn("User not authenticated, cannot initialize call properly yet.");
+      return;
+    }
+
     try {
       setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
-      // Create demo call data immediately
-      const callData = {
-        id: callId,
-        patientId: 'demo_patient',
-        doctorId: 'demo_doctor',
-        isImmediate: true,
-        status: 'pending' as const,
-        createdAt: new Date(),
-        callLink: `${window.location.origin}/video-call?callId=${callId}`,
-        patientName: 'Demo Patient',
-        patientPhone: '9876543210',
-        issue: 'Demo consultation'
-      };
+      // 1. Fetch Appointment to determine role
+      const { doc, getDoc } = await import('firebase/firestore');
+      const { db } = await import('@/lib/firebase');
 
-      // Initialize WebRTC service
+      const appDoc = await getDoc(doc(db, 'appointments', callId));
+      if (!appDoc.exists()) {
+        throw new Error("Appointment not found");
+      }
+
+      const appData = appDoc.data();
+      setState(prev => ({ ...prev, callData: appData as any }));
+
+      const isInitiator = user.uid === appData.patientId;
+      console.log(`Role determined: ${isInitiator ? 'Initiator (Patient)' : 'Receiver (Doctor)'}`);
+
+      // 2. Initialize WebRTC
       webrtcService.current = new WebRTCService(defaultWebRTCConfig);
-      
-      // Set up event handlers
+
       webrtcService.current.onRemoteStream = (stream) => {
+        console.log("Remote stream received");
         setState(prev => ({ ...prev, remoteStream: stream }));
       };
 
       webrtcService.current.onConnectionStateChange = (connectionState) => {
+        console.log("Connection state:", connectionState);
         if (connectionState === 'connected') {
-          setState(prev => ({ 
-            ...prev, 
-            isConnected: true, 
-            isConnecting: false 
-          }));
-          toast({
-            title: 'Call Connected',
-            description: 'You are now connected to the doctor.'
-          });
+          setState(prev => ({ ...prev, isConnected: true, isConnecting: false }));
+          toast({ title: 'Connected', description: 'Video connection established.' });
         } else if (connectionState === 'disconnected' || connectionState === 'failed') {
-          setState(prev => ({ 
-            ...prev, 
-            isConnected: false, 
-            isConnecting: false 
-          }));
-          toast({
-            title: 'Call Disconnected',
-            description: 'The call has ended.'
-          });
+          setState(prev => ({ ...prev, isConnected: false, isConnecting: false }));
+          toast({ title: 'Disconnected', description: 'Call disconnected.' });
         }
       };
 
-      // Initialize the call
-      await webrtcService.current.initializeCall(callId, true);
-      
-      const localStream = webrtcService.current.getLocalStream();
-      
-      setState(prev => ({ 
-        ...prev, 
-        localStream,
-        callData,
-        isConnecting: false 
-      }));
+      webrtcService.current.onIceCandidate = (candidate) => {
+        if (signalingService.current) {
+          signalingService.current.sendIceCandidate(candidate);
+        }
+      };
 
-      // Simulate connection after 1 second
-      setTimeout(() => {
-        setState(prev => ({ 
-          ...prev, 
-          isConnected: true
-        }));
-        toast({
-          title: 'Video Call Ready',
-          description: 'Your video call interface is ready. In production, you would be connected to a real doctor.'
-        });
-      }, 1000);
+      // 3. Start Call (Get Local Media)
+      await webrtcService.current.initializeCall(callId, isInitiator);
+      const localStream = webrtcService.current.getLocalStream();
+      setState(prev => ({ ...prev, localStream }));
+
+      // 4. Setup Signaling
+      if (signalingService.current) {
+        await signalingService.current.joinCall(
+          callId,
+          async (offer) => {
+            // On Offer received
+            // If I am Initiator, I sent the offer (or older one), so ignore.
+            // If I am Receiver, I accept offer.
+            if (!isInitiator) {
+              console.log("Received Offer (as Receiver)");
+              if (webrtcService.current) {
+                // Check if we are already connected or have processed an offer to avoid loops?
+                // WebRTCService typically handles state, but let's be safe.
+                const answer = await webrtcService.current.createAnswer(offer);
+                await signalingService.current?.sendAnswer(answer);
+              }
+            } else {
+              console.log("Ignored Offer (as Initiator)");
+            }
+          },
+          async (answer) => {
+            // On Answer received
+            // If I am Initiator, I accept answer.
+            // If I am Receiver, I sent the answer, so ignore.
+            if (isInitiator) {
+              console.log("Received Answer (as Initiator)");
+              if (webrtcService.current) {
+                await webrtcService.current.setRemoteDescription(answer);
+              }
+            } else {
+              console.log("Ignored Answer (as Receiver)");
+            }
+          },
+          async (candidate) => {
+            if (webrtcService.current) {
+              await webrtcService.current.addIceCandidate(candidate);
+            }
+          }
+        );
+      }
+
+      // 5. If Initiator, Create Offer
+      if (isInitiator) {
+        console.log("Creating Offer (as Initiator)");
+        if (webrtcService.current) {
+          const offer = await webrtcService.current.createOffer();
+          await signalingService.current?.sendOffer(offer);
+        }
+      }
 
     } catch (error) {
       console.error('Error initializing call:', error);
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         error: error instanceof Error ? error.message : 'Failed to initialize call',
-        isConnecting: false 
+        isConnecting: false
       }));
-      toast({
-        variant: 'destructive',
-        title: 'Call Error',
-        description: 'Failed to initialize the video call.'
-      });
     }
-  }, [toast]);
+  }, [toast, user]);
 
   const toggleMute = useCallback(() => {
     if (webrtcService.current) {
@@ -161,20 +185,11 @@ export function useVideoCall() {
   }, []);
 
   const endCall = useCallback(async () => {
-    if (webrtcService.current) {
-      webrtcService.current.endCall();
-    }
+    if (webrtcService.current) webrtcService.current.endCall();
+    if (signalingService.current) signalingService.current.endCall();
 
-    if (signalingService.current) {
-      await signalingService.current.endCall();
-    }
-
-    if (state.callData) {
-      await callScheduler.current?.updateCallStatus(state.callData.id, 'completed');
-    }
-
-    setState(prev => ({ 
-      ...prev, 
+    setState(prev => ({
+      ...prev,
       isConnected: false,
       isConnecting: false,
       localStream: null,
@@ -182,89 +197,23 @@ export function useVideoCall() {
       callData: null
     }));
 
-    toast({
-      title: 'Call Ended',
-      description: 'Your consultation has ended.'
-    });
-
+    toast({ title: 'Call Ended', description: 'Your consultation has ended.' });
     router.push('/map');
-  }, [state.callData, toast, router]);
+  }, [toast, router]);
 
-  const createImmediateCall = useCallback(async (patientData: {
-    patientId: string;
-    patientName: string;
-    patientPhone: string;
-    issue: string;
-  }) => {
-    try {
-      // Create call ID immediately without any database calls
-      const callId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      toast({
-        title: 'Call Created Successfully',
-        description: 'Your video call has been created. You will be redirected to the call interface.'
-      });
-      
-      // Redirect immediately
-      router.push(`/video-call?callId=${callId}`);
-      
-    } catch (error) {
-      console.error('Error creating immediate call:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Call Error',
-        description: 'Failed to create the video call. Please try again.'
-      });
-    }
-  }, [router, toast]);
-
-  const createScheduledCall = useCallback(async (patientData: {
-    patientId: string;
-    patientName: string;
-    patientPhone: string;
-    issue: string;
-    scheduledTime: Date;
-  }) => {
-    try {
-      // Always create call using scheduler (now uses localStorage)
-      const callId = await callScheduler.current?.createCall({
-        ...patientData,
-        doctorId: 'doctor_1', // Default doctor ID
-        isImmediate: false
-      });
-
-      if (callId) {
-        toast({
-          title: 'Call Scheduled Successfully',
-          description: `Your video call has been scheduled for ${patientData.scheduledTime.toLocaleString()}. You'll receive a notification 5 minutes before the call.`
-        });
-        router.push('/map');
-      }
-    } catch (error) {
-      console.error('Error creating scheduled call:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Scheduling Error',
-        description: 'Failed to schedule the video call. Please try again.'
-      });
-    }
-  }, [router, toast]);
-
-  // Auto-initialize call if callId is in URL
+  // Auto-initialize call if callId is in URL and user is loaded
   useEffect(() => {
     const callId = searchParams.get('callId');
-    if (callId && !state.callData) {
+    if (callId && !state.callData && !state.isConnecting && user) {
       initializeCall(callId);
     }
-  }, [searchParams, initializeCall, state.callData]);
+  }, [searchParams, initializeCall, state.callData, state.isConnecting, user]);
 
   return {
     ...state,
     initializeCall,
     toggleMute,
     toggleVideo,
-    endCall,
-    createImmediateCall,
-    createScheduledCall
+    endCall
   };
 }

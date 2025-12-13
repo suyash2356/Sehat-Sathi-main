@@ -3,46 +3,79 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check ownership
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Users can only read and write their own profile
+    // Helper function to check ownership
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users collection (Patients/General Users)
     match /users/{userId} {
       allow read, write: if isOwner(userId);
-
-      // Users can only read and write their own subcollections
+      
       match /{subcollection}/{docId} {
         allow read, write, delete: if isOwner(userId);
       }
     }
 
-    // Doctors collection: allow doctors to read/write their own profile and subcollections
+    // Doctors collection
     match /doctors/{doctorId} {
-      allow read, write: if isOwner(doctorId);
-
-      // Allow doctor to read/write their schedule, documents, etc.
+      // Anyone can read doctors (needed for the map/listing)
+      allow read: if true; 
+      
+      // Update: Owner can update profile, Admin can verify/reject (delete)
+      allow write: if isOwner(doctorId) || request.auth.token.email == 'admin@sehatsathi.com';
+      
       match /{subcollection}/{docId} {
-        allow read, write, delete: if isOwner(doctorId);
+         allow read, write, delete: if isOwner(doctorId) || request.auth.token.email == 'admin@sehatsathi.com';
       }
     }
     
-    // Appointments can be created by anyone, but only read/updated by participants (future rule)
-    // For now, we allow authenticated users to create and read them.
+    // Appointments collection
     match /appointments/{appointmentId} {
-      allow create: if request.auth != null;
-      allow read, update: if request.auth != null; // Simplified for now
+      // Create: Authenticated users (patients) can create booking requests
+      allow create: if isAuthenticated();
+      
+      // Read: Users can only read appointments they are part of
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.patientId || 
+        request.auth.uid == resource.data.doctorId
+      );
+
+      // Update: Users can update appointments they are part of (e.g., status changes)
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.patientId || 
+        request.auth.uid == resource.data.doctorId
+      );
     }
 
-    // Video calls - allow authenticated users to create and read
+    // Video calls
     match /calls/{callId} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Signaling messages - allow authenticated users to create and read
-    match /signaling/{messageId} {
-      allow read, write: if request.auth != null;
+      // Only participants (doctor or patient) can read/write call data
+      // For creation, we might not have data yet, so allow create if auth
+      allow create: if isAuthenticated();
+      
+      allow read, update: if isAuthenticated() && (
+        request.auth.uid == resource.data.patientId || 
+        request.auth.uid == resource.data.doctorId
+      );
+      
+      // Allow writing ICE candidates subcollection
+      match /candidates/{candidateId} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      match /offerCandidates/{candidateId} {
+        allow read, write: if isAuthenticated();
+      }
+      
+      match /answerCandidates/{candidateId} {
+        allow read, write: if isAuthenticated();
+      }
     }
   }
 }

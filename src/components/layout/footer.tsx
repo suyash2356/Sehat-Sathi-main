@@ -38,13 +38,18 @@ export function Footer() {
             ))}
           </nav>
         </div>
-        <div className="mt-8 text-center text-xs text-muted-foreground border-t border-border pt-8">
+        <div className="mt-8 text-center text-xs text-muted-foreground border-t border-border pt-8 flex flex-col gap-2">
           <p className="font-semibold">
             {t.footer.disclaimer}
           </p>
-          <p className="mt-2">
+          <p>
             {t.footer.copyright.replace('{year}', new Date().getFullYear().toString())}
           </p>
+          <div className="mt-2">
+            <Link href="/admin/login" className="hover:text-primary transition-colors hover:underline">
+              Admin Access
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

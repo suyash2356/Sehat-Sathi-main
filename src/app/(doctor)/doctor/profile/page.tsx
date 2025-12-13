@@ -28,7 +28,8 @@ const documentSchema = z.object({
 const profileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
   specialization: z.string().min(2, "Specialization is required."),
-  experience: z.preprocess((a) => parseInt(z.string().parse(a), 10), 
+  location: z.string().min(2, "Location is required."), // Added location schema
+  experience: z.preprocess((a) => parseInt(z.string().parse(a), 10),
     z.number().positive('Experience must be a positive number.').min(0, 'Experience cannot be negative.')
   ),
   bio: z.string().max(500, "Bio cannot exceed 500 characters.").optional(),
@@ -45,7 +46,7 @@ export default function DoctorProfilePage() {
   const db = useFirestore();
   const storage = useStorage();
   const { toast } = useToast();
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [profilePictureFile, setProfilePictureFile] = useState<File | null>(null);
@@ -55,6 +56,7 @@ export default function DoctorProfilePage() {
     defaultValues: {
       fullName: '',
       specialization: '',
+      location: '', // Added location default value
       experience: 0,
       bio: '',
       profilePicture: '',
@@ -87,9 +89,9 @@ export default function DoctorProfilePage() {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
-  
+
   const uploadFile = async (file: File, path: string): Promise<string> => {
-    if(!storage) throw new Error("Storage not available");
+    if (!storage) throw new Error("Storage not available");
     const fileRef = ref(storage, path);
     await uploadBytes(fileRef, file);
     return await getDownloadURL(fileRef);
@@ -101,7 +103,7 @@ export default function DoctorProfilePage() {
     try {
       const url = await uploadFile(file, `doctors/${user.uid}/${type}/${file.name}`);
       const docData = { name: file.name, url, fileName: file.name };
-      if(type === 'certifications') appendCertification(docData);
+      if (type === 'certifications') appendCertification(docData);
       else appendLicense(docData);
       toast({ title: 'Upload successful', description: `${file.name} has been uploaded.` });
     } catch (error) {
@@ -143,7 +145,7 @@ export default function DoctorProfilePage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-5xl mx-auto">
           <Card className="shadow-lg">
-              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <label htmlFor="profile-picture-upload" className="cursor-pointer">
                   <Avatar className="h-24 w-24 border-4 border-white shadow-md">
@@ -176,15 +178,18 @@ export default function DoctorProfilePage() {
                     <FormField control={form.control} name="fullName" render={({ field }) => <FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name="specialization" render={({ field }) => <FormItem><FormLabel>Specialization</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                   </div>
-                  <FormField control={form.control} name="experience" render={({ field }) => <FormItem><FormLabel>Years of Experience</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                  <FormField control={form.control} name="bio" render={({ field }) => <FormItem><FormLabel>Biography</FormLabel><FormControl><Textarea {...field} rows={5} placeholder="Tell patients a little about yourself..." /></FormControl><FormMessage /></FormItem>} />
+                  <FormField control={form.control} name="location" render={({ field }) => <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="City, Country" {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    <FormField control={form.control} name="experience" render={({ field }) => <FormItem><FormLabel>Years of Experience</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name="bio" render={({ field }) => <FormItem><FormLabel>Biography</FormLabel><FormControl><Textarea {...field} rows={5} placeholder="Tell patients a little about yourself..." /></FormControl><FormMessage /></FormItem>} />
+                  </div>
                 </TabsContent>
 
                 {/* Certifications Tab */}
                 <TabsContent value="certifications" className="mt-6">
-                  <DocumentSection title="Certifications" documents={certifications} onUpload={(file) => handleDocumentUpload(file, 'certifications')} onRemove={removeCertification} isSaving={isSaving}/>
+                  <DocumentSection title="Certifications" documents={certifications} onUpload={(file) => handleDocumentUpload(file, 'certifications')} onRemove={removeCertification} isSaving={isSaving} />
                 </TabsContent>
-                
+
                 {/* Licenses Tab */}
                 <TabsContent value="licenses" className="mt-6">
                   <DocumentSection title="Licenses" documents={licenses} onUpload={(file) => handleDocumentUpload(file, 'licenses')} onRemove={removeLicense} isSaving={isSaving} />
@@ -201,40 +206,40 @@ export default function DoctorProfilePage() {
 
 // Helper component for document sections
 function DocumentSection({ title, documents, onUpload, onRemove, isSaving }: {
-    title: string;
-    documents: any[];
-    onUpload: (file: File) => void;
-    onRemove: (index: number) => void;
-    isSaving: boolean;
+  title: string;
+  documents: any[];
+  onUpload: (file: File) => void;
+  onRemove: (index: number) => void;
+  isSaving: boolean;
 }) {
-    const [uploading, setUploading] = useState(false);
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-                <CardDescription>Manage your {title.toLowerCase()}.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {documents.map((doc, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 rounded-md">
-                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-medium text-primary hover:underline">
-                            <FileText className="h-5 w-5" /> {doc.name}
-                        </a>
-                        <Button variant="ghost" size="icon" onClick={() => onRemove(index)}><X className="h-4 w-4" /></Button>
-                    </div>
-                ))}
-                {documents.length === 0 && <p className='text-sm text-gray-500 text-center py-4'>No {title.toLowerCase()} uploaded yet.</p>}
-                <div className="pt-4">
-                  <label htmlFor={`upload-${title}`} className="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <div className="text-center">
-                          <Upload className="mx-auto h-10 w-10 text-gray-400"/>
-                          <p className="mt-2 text-sm font-medium">Click to upload or drag & drop</p>
-                          <p className="text-xs text-gray-500">PDF, PNG, JPG up to 10MB</p>
-                      </div>
-                      <Input id={`upload-${title}`} type="file" className="hidden" onChange={e => { if(e.target.files) onUpload(e.target.files[0])} } disabled={isSaving || uploading} />
-                  </label>
-                </div>
-            </CardContent>
-        </Card>
-    )
+  const [uploading, setUploading] = useState(false);
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>Manage your {title.toLowerCase()}.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {documents.map((doc, index) => (
+          <div key={index} className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 rounded-md">
+            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-sm font-medium text-primary hover:underline">
+              <FileText className="h-5 w-5" /> {doc.name}
+            </a>
+            <Button variant="ghost" size="icon" onClick={() => onRemove(index)}><X className="h-4 w-4" /></Button>
+          </div>
+        ))}
+        {documents.length === 0 && <p className='text-sm text-gray-500 text-center py-4'>No {title.toLowerCase()} uploaded yet.</p>}
+        <div className="pt-4">
+          <label htmlFor={`upload-${title}`} className="flex items-center justify-center w-full px-4 py-6 border-2 border-dashed rounded-md cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">
+            <div className="text-center">
+              <Upload className="mx-auto h-10 w-10 text-gray-400" />
+              <p className="mt-2 text-sm font-medium">Click to upload or drag & drop</p>
+              <p className="text-xs text-gray-500">PDF, PNG, JPG up to 10MB</p>
+            </div>
+            <Input id={`upload-${title}`} type="file" className="hidden" onChange={e => { if (e.target.files) onUpload(e.target.files[0]) }} disabled={isSaving || uploading} />
+          </label>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }

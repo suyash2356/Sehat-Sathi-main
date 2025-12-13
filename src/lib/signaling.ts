@@ -1,24 +1,20 @@
 'use client';
 
-import { db } from './firebase';
-import { collection, addDoc, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, doc, updateDoc, onSnapshot, addDoc, getDoc, setDoc } from 'firebase/firestore';
 
 export interface SignalingMessage {
-  id: string;
-  callId: string;
-  type: 'offer' | 'answer' | 'ice-candidate' | 'call-ended';
+  type: 'offer' | 'answer' | 'candidate';
   data: any;
-  timestamp: Date;
-  from: string; // 'patient' | 'doctor'
 }
 
 export class SignalingService {
   private static instance: SignalingService;
   private callId: string | null = null;
-  private isDoctor: boolean = false;
-  private messageCallbacks: ((message: SignalingMessage) => void)[] = [];
+  private unsubscribe: (() => void) | null = null;
+  private unsubscribeCandidates: (() => void) | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): SignalingService {
     if (!SignalingService.instance) {
@@ -27,31 +23,40 @@ export class SignalingService {
     return SignalingService.instance;
   }
 
-  async joinCall(callId: string, isDoctor: boolean = false): Promise<void> {
+  // Setups up listeners for remote offer/answer/candidates
+  async joinCall(callId: string, onOffer: (offer: any) => void, onAnswer: (answer: any) => void, onCandidate: (candidate: any) => void): Promise<void> {
     this.callId = callId;
-    this.isDoctor = isDoctor;
+    const callDocRef = doc(db, 'calls', callId);
 
-    // Listen for signaling messages
-    const messagesQuery = query(
-      collection(db, 'signaling'),
-      where('callId', '==', callId),
-      orderBy('timestamp', 'desc'),
-      limit(50)
-    );
+    // Ensure doc exists (if not, create it placeholder) - usually appointment creation does this or first joiner
+    const callDoc = await getDoc(callDocRef);
+    if (!callDoc.exists()) {
+      await setDoc(callDocRef, { createdAt: new Date() });
+    }
 
-    onSnapshot(messagesQuery, (snapshot) => {
+    // Listen to call document for Offer/Answer
+    this.unsubscribe = onSnapshot(callDocRef, (snapshot) => {
+      const data = snapshot.data();
+      if (!data) return;
+
+      // If we see an offer and we didn't create it (conceptually), but here simpler:
+      // The checking of "did I send this" is usually done by checking who set it, or state.
+      // We will just pass data up and let caller handle "ignore my own offer".
+      if (data.offer) {
+        onOffer(data.offer);
+      }
+      if (data.answer) {
+        onAnswer(data.answer);
+      }
+    });
+
+    // Listen for ICE candidates
+    const candidatesRef = collection(db, 'calls', callId, 'candidates');
+    this.unsubscribeCandidates = onSnapshot(candidatesRef, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const data = change.doc.data();
-          const message: SignalingMessage = {
-            ...data,
-            timestamp: new Date(data.timestamp)
-          };
-          
-          // Only process messages not sent by current user
-          if (message.from !== (isDoctor ? 'doctor' : 'patient')) {
-            this.messageCallbacks.forEach(callback => callback(message));
-          }
+          onCandidate(data);
         }
       });
     });
@@ -59,66 +64,35 @@ export class SignalingService {
 
   async sendOffer(offer: RTCSessionDescriptionInit): Promise<void> {
     if (!this.callId) throw new Error('Not in a call');
-    
-    await this.sendMessage({
-      type: 'offer',
-      data: offer
-    });
+    const callDocRef = doc(db, 'calls', this.callId);
+    await updateDoc(callDocRef, { offer });
   }
 
   async sendAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
     if (!this.callId) throw new Error('Not in a call');
-    
-    await this.sendMessage({
-      type: 'answer',
-      data: answer
-    });
+    const callDocRef = doc(db, 'calls', this.callId);
+    await updateDoc(callDocRef, { answer });
   }
 
-  async sendIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
+  async sendIceCandidate(candidate: RTCIceCandidate, type: 'offer' | 'answer' = 'offer'): Promise<void> {
     if (!this.callId) throw new Error('Not in a call');
-    
-    await this.sendMessage({
-      type: 'ice-candidate',
-      data: candidate
+    const candidatesRef = collection(db, 'calls', this.callId, 'candidates');
+    // We can allow adding candidate directly
+    await addDoc(candidatesRef, {
+      ...candidate.toJSON(),
+      type // useful to distinguish who sent it if needed, or stick to simple
     });
   }
 
-  async endCall(): Promise<void> {
-    if (!this.callId) return;
-    
-    await this.sendMessage({
-      type: 'call-ended',
-      data: {}
-    });
-    
+  endCall(): void {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+    }
+    if (this.unsubscribeCandidates) {
+      this.unsubscribeCandidates();
+      this.unsubscribeCandidates = null;
+    }
     this.callId = null;
-  }
-
-  onMessage(callback: (message: SignalingMessage) => void): () => void {
-    this.messageCallbacks.push(callback);
-    
-    return () => {
-      const index = this.messageCallbacks.indexOf(callback);
-      if (index > -1) {
-        this.messageCallbacks.splice(index, 1);
-      }
-    };
-  }
-
-  private async sendMessage(message: Omit<SignalingMessage, 'id' | 'callId' | 'timestamp' | 'from'>): Promise<void> {
-    if (!this.callId) throw new Error('Not in a call');
-
-    const signalingMessage: Omit<SignalingMessage, 'id'> = {
-      ...message,
-      callId: this.callId,
-      timestamp: new Date(),
-      from: this.isDoctor ? 'doctor' : 'patient'
-    };
-
-    await addDoc(collection(db, 'signaling'), {
-      ...signalingMessage,
-      timestamp: signalingMessage.timestamp.toISOString()
-    });
   }
 }
