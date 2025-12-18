@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LogOut, AlertTriangle, User, Briefcase, MapPin } from 'lucide-react';
+import { LogOut, AlertTriangle, User, Briefcase, MapPin, BadgeCheck } from 'lucide-react';
 import Link from 'next/link'; // Import Link
 
 // Data structures for Patient, Doctor, Appointment
@@ -24,6 +24,7 @@ interface DoctorData {
   fullName: string;
   specialization: string;
   location?: string;
+  verificationLevel?: number;
 }
 
 interface Appointment {
@@ -82,7 +83,16 @@ export default function PatientDashboardPage() {
           // 2. Fetch Doctors
           const doctorsQuery = query(collection(db, "doctors"), where("isProfileComplete", "==", true));
           const doctorsSnapshot = await getDocs(doctorsQuery);
-          const fetchedDoctors = doctorsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as DoctorData));
+          const fetchedDoctors = doctorsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              uid: doc.id,
+              fullName: data.name || 'Unknown Doctor',
+              specialization: data.specialization || 'General',
+              location: data.hospitalName || 'Local Clinic',
+              verificationLevel: data.verificationLevel
+            } as DoctorData;
+          });
           setDoctors(fetchedDoctors);
 
           // 3. Fetch Appointments
@@ -178,7 +188,12 @@ export default function PatientDashboardPage() {
                             <AvatarFallback>{doctor.fullName.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-bold text-lg">Dr. {doctor.fullName}</p>
+                            <div className="flex items-center gap-1">
+                              <p className="font-bold text-lg">Dr. {doctor.fullName}</p>
+                              {doctor.verificationLevel === 3 && (
+                                <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
+                              )}
+                            </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
                               <Briefcase className="h-4 w-4 mr-2" />
                               {doctor.specialization}

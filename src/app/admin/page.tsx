@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/use-user';
 import { auth } from '@/lib/firebase';
+import { ExternalLink, FileText } from 'lucide-react';
 
 interface Doctor {
     uid: string;
@@ -19,6 +20,9 @@ interface Doctor {
     licenseNumber?: string;
     isVerified: boolean;
     hospitalName?: string;
+    licenseDocumentUrl?: string;
+    idProofUrl?: string;
+    verificationLevel?: number;
 }
 
 export default function AdminDashboard() {
@@ -80,7 +84,8 @@ export default function AdminDashboard() {
         try {
             const doctorRef = doc(db, 'doctors', doctorId);
             await updateDoc(doctorRef, {
-                isVerified: true
+                isVerified: true,
+                verificationLevel: 3 // Level 3: Fully Verified
             });
 
             toast({
@@ -182,7 +187,39 @@ export default function AdminDashboard() {
                                             <p><span className="font-medium text-foreground">License ID:</span> {doctor.licenseNumber || 'Not Provided'}</p>
                                             <p><span className="font-medium text-foreground">Specialization:</span> {doctor.specialization || 'Not Provided'}</p>
                                             <p><span className="font-medium text-foreground">Hospital:</span> {doctor.hospitalName || 'Not Provided'}</p>
-                                            {/* Note: Phone number is not in interface yet, but if saved it's accessible via doctor['phoneNumber'] if we update interface */}
+                                            <p><span className="font-medium text-foreground">Level:</span> {doctor.verificationLevel || 2}</p>
+
+                                            <div className="flex flex-wrap gap-4 mt-3">
+                                                {doctor.licenseDocumentUrl && (
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="h-4 w-4 text-primary" />
+                                                        <a href={doctor.licenseDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm font-medium">
+                                                            View License
+                                                        </a>
+                                                    </div>
+                                                )}
+                                                {doctor.idProofUrl && (
+                                                    <div className="flex items-center gap-2">
+                                                        <ShieldAlert className="h-4 w-4 text-primary" />
+                                                        <a href={doctor.idProofUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm font-medium">
+                                                            View ID Proof
+                                                        </a>
+                                                    </div>
+                                                )}
+                                                {doctor.licenseNumber && (
+                                                    <div className="flex items-center gap-2">
+                                                        <ExternalLink className="h-4 w-4 text-blue-600" />
+                                                        <a
+                                                            href={`https://www.nmc.org.in/information-desk/indian-medical-register/`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-600 hover:underline text-sm font-medium"
+                                                        >
+                                                            Verify on NMC Registry
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex gap-2 w-full md:w-auto mt-4 md:mt-0">

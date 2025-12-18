@@ -18,6 +18,18 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import {
+  BadgeCheck,
+  MapPin,
+  Search,
+  Phone,
+  Calendar,
+  Video,
+  Mic,
+  User as UserIcon,
+  BotMessageSquare,
+  Globe
+} from 'lucide-react';
 import { format } from 'date-fns';
 
 const libraries: ("places" | "drawing" | "geometry" | "visualization")[] = ['places'];
@@ -51,6 +63,7 @@ interface Doctor {
   district?: string;
   village?: string;
   contact?: string; // Add contact property
+  verificationLevel?: number;
 }
 
 // Helper to convert Doctor to the shape used by the UI (combining doctor & hospital info)
@@ -304,7 +317,12 @@ export default function MapPage() {
               <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
                 {filteredDoctors.map(doc => (
                   <li key={doc.id} onClick={() => setSelectedDoctor(doc)} className={`p-2 rounded-md cursor-pointer ${selectedDoctor?.id === doc.id ? 'bg-blue-200 dark:bg-blue-800' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                    <p className="font-semibold">{doc.name}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="font-semibold">{doc.name}</p>
+                      {doc.verificationLevel === 3 && (
+                        <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">{doc.specialization} - {doc.hospitalName}</p>
                   </li>
                 ))}
@@ -328,7 +346,12 @@ export default function MapPage() {
               <InfoWindow position={{ lat: selectedDoctor.lat, lng: selectedDoctor.lng }} onCloseClick={() => setSelectedDoctor(null)}>
                 <Card className="max-w-sm border-none shadow-none text-black">
                   <div className="p-2">
-                    <h3 className="font-bold text-lg">{selectedDoctor.name}</h3>
+                    <div className="flex items-center gap-1">
+                      <h3 className="font-bold text-lg">{selectedDoctor.name}</h3>
+                      {selectedDoctor.verificationLevel === 3 && (
+                        <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
+                      )}
+                    </div>
                     <p className="text-sm font-semibold">{selectedDoctor.specialization}</p>
                     <p className="text-sm">{selectedDoctor.hospitalName}</p>
                     <p className="text-sm text-gray-600">{selectedDoctor.address}</p>
@@ -381,7 +404,13 @@ export default function MapPage() {
           <CardHeader>
             <CardTitle>Book Appointment</CardTitle>
             {selectedDoctor ?
-              <CardDescription>Booking with: <span className="font-bold text-primary">{selectedDoctor.name}</span> ({selectedDoctor.specialization})</CardDescription> :
+              <CardDescription className="flex items-center gap-1">
+                Booking with: <span className="font-bold text-primary">{selectedDoctor.name}</span>
+                {selectedDoctor.verificationLevel === 3 && (
+                  <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
+                )}
+                ({selectedDoctor.specialization})
+              </CardDescription> :
               <CardDescription>Select a doctor on the map to start booking.</CardDescription>
             }
           </CardHeader>

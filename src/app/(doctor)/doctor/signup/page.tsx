@@ -13,6 +13,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
+import { uploadToSupabase } from "@/lib/supabase";
+import { useState } from "react";
+import { FileUp, CheckCircle2 } from "lucide-react";
 
 const formSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),
@@ -29,6 +32,9 @@ export default function DoctorSignUpPage() {
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
+  const [idProofFile, setIdProofFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,10 +56,32 @@ export default function DoctorSignUpPage() {
     }
 
     try {
+      if (!licenseFile || !idProofFile) {
+        toast({ title: "Documents Required", description: "Please upload both your medical license and ID proof for verification.", variant: "destructive" });
+        return;
+      }
+
+      setUploading(true);
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // Create a document in the 'doctors' collection
+      // 1. Upload license to Supabase
+      let licenseUrl = "";
+      let idProofUrl = "";
+      try {
+        const fileExt = licenseFile.name.split('.').pop();
+        const idExt = idProofFile.name.split('.').pop();
+
+        const licenseFileName = `${user.uid}-license.${fileExt}`;
+        const idProofFileName = `${user.uid}-idproof.${idExt}`;
+
+        licenseUrl = await uploadToSupabase(licenseFile, `doctor-licenses/${licenseFileName}`, 'uploads');
+        idProofUrl = await uploadToSupabase(idProofFile, `doctor-ids/${idProofFileName}`, 'uploads');
+      } catch (uploadError) {
+        console.error("Supabase Upload Error:", uploadError);
+      }
+
+      // 2. Create a document in the 'doctors' collection
       await setDoc(doc(db, "doctors", user.uid), {
         uid: user.uid,
         email: user.email,
@@ -62,19 +90,26 @@ export default function DoctorSignUpPage() {
         specialization: values.specialization,
         hospitalName: values.hospitalName,
         phoneNumber: values.phoneNumber,
+        licenseDocumentUrl: licenseUrl,
+        idProofUrl: idProofUrl,
         isVerified: false,
+        verificationLevel: 2, // Level 2: Documents uploaded
+        isProfileComplete: true,
         createdAt: new Date().toISOString(),
       });
 
-      toast({ title: "Account Created", description: "Welcome! Please log in to continue." });
+      toast({ title: "Account Created", description: "Registration successful! Admin will verify your documents shortly." });
       router.push('/doctor/login');
 
     } catch (error: any) {
+      console.error("Signup Error:", error);
       let errorMessage = "An unknown error occurred.";
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = "This email is already in use. Please try another.";
       }
       toast({ title: "Sign Up Failed", description: errorMessage, variant: "destructive" });
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -178,8 +213,47 @@ export default function DoctorSignUpPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Creating Account..." : "Sign Up"}
+
+              <div className="space-y-4">
+                <div className="p-4 border-2 border-dashed rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <FormLabel className="flex items-center gap-2 mb-2">
+                    <FileUp className="h-4 w-4 text-primary" />
+                    Medical Registration Certificate (PDF/Image)
+                  </FormLabel>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => setLicenseFile(e.target.files?.[0] || null)}
+                      className="cursor-pointer file:bg-primary file:text-white file:border-0 file:rounded-md file:px-4 file:py-1 file:mr-4 file:hover:bg-primary/90"
+                    />
+                    {licenseFile && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+                  </div>
+                </div>
+
+                <div className="p-4 border-2 border-dashed rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <FormLabel className="flex items-center gap-2 mb-2">
+                    <FileUp className="h-4 w-4 text-primary" />
+                    Identity Proof (Aadhar/Passport/PAN)
+                  </FormLabel>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => setIdProofFile(e.target.files?.[0] || null)}
+                      className="cursor-pointer file:bg-primary file:text-white file:border-0 file:rounded-md file:px-4 file:py-1 file:mr-4 file:hover:bg-primary/90"
+                    />
+                    {idProofFile && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground mt-2 italic">
+                *Documents are used strictly for professional verification by our medical board.
+              </p>
+
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || uploading}>
+                {form.formState.isSubmitting || uploading ? "Processing Registration..." : "Sign Up"}
               </Button>
             </form>
           </Form>
