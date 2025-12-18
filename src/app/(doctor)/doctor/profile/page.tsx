@@ -10,7 +10,7 @@ import * as z from 'zod';
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -46,6 +46,20 @@ const profileSchema = z.object({
   certifications: z.array(documentSchema).optional(),
   licenses: z.array(documentSchema).optional(),
   isProfileComplete: z.boolean().optional(),
+  // Prescription Template Fields
+  qualification: z.string().min(2, "Qualification is required (e.g., MBBS, MD).").optional(),
+  registrationNumber: z.string().min(2, "Registration Number is required.").optional(),
+  consultationFee: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      const parsed = parseInt(val, 10);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return val;
+  }, z.number().min(0).optional()),
+  clinicName: z.string().optional(),
+  clinicAddress: z.string().optional(),
+  signatureUrl: z.string().optional(),
+  stampUrl: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -74,6 +88,13 @@ export default function DoctorProfilePage() {
       certifications: [],
       licenses: [],
       isProfileComplete: false,
+      qualification: '',
+      registrationNumber: '',
+      consultationFee: 0,
+      clinicName: '',
+      clinicAddress: '',
+      signatureUrl: '',
+      stampUrl: '',
     },
   });
 
@@ -104,6 +125,13 @@ export default function DoctorProfilePage() {
           certifications: data.certifications || [],
           licenses: data.licenses || [],
           isProfileComplete: data.isProfileComplete || false,
+          qualification: data.qualification || '',
+          registrationNumber: data.registrationNumber || data.licenseNumber || '',
+          consultationFee: data.consultationFee || 0,
+          clinicName: data.clinicName || data.hospitalName || '',
+          clinicAddress: data.clinicAddress || data.hospitalAddress || '',
+          signatureUrl: data.signatureUrl || '',
+          stampUrl: data.stampUrl || '',
         });
       }
     } catch (error) {
@@ -209,6 +237,28 @@ export default function DoctorProfilePage() {
     }
   };
 
+  const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
+
+  const handleTemplateFileUpload = async (file: File, type: 'signature' | 'stamp') => {
+    if (!user) return;
+    setIsUploadingTemplate(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const path = `doctors/${user.uid}/template/${type}_${safeName}`;
+      const url = await uploadToSupabase(file, path);
+
+      if (type === 'signature') form.setValue('signatureUrl', url);
+      else form.setValue('stampUrl', url);
+
+      toast({ title: 'Success', description: `${type === 'signature' ? 'Signature' : 'Stamp'} uploaded.` });
+    } catch (error: any) {
+      console.error('Upload failed', error);
+      toast({ title: 'Upload Failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsUploadingTemplate(false);
+    }
+  };
+
   if (isLoading || isUserLoading) {
     return <div className="p-8"><Skeleton className="h-[500px] w-full" /></div>;
   }
@@ -241,9 +291,106 @@ export default function DoctorProfilePage() {
               <Tabs defaultValue="personal">
                 <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                   <TabsTrigger value="personal">Personal Details</TabsTrigger>
+                  <TabsTrigger value="template">Prescription Template</TabsTrigger>
                   <TabsTrigger value="certifications">Certifications</TabsTrigger>
                   <TabsTrigger value="licenses">Licenses</TabsTrigger>
                 </TabsList>
+
+                {/* Prescription Template Tab */}
+                <TabsContent value="template" className="mt-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="qualification" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Professional Qualification</FormLabel>
+                        <FormControl><Input placeholder="MBBS, MD (Cardiology)" {...field} /></FormControl>
+                        <FormDescription>This will appear next to your name on prescriptions.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="registrationNumber" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Medical Registration No.</FormLabel>
+                        <FormControl><Input placeholder="REG-123456" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField control={form.control} name="clinicName" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Clinic/Hospital Name (for Template)</FormLabel>
+                        <FormControl><Input {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="consultationFee" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Consultation Fee (₹)</FormLabel>
+                        <FormControl><Input type="number" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <FormField control={form.control} name="clinicAddress" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Clinic/Hospital Address (for Template)</FormLabel>
+                      <FormControl><Textarea {...field} rows={2} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Signature Upload */}
+                    <div className="space-y-4">
+                      <FormLabel>Digital Signature (Transparent PNG recommended)</FormLabel>
+                      <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/20">
+                        {form.watch('signatureUrl') ? (
+                          <div className="relative w-full h-32 mb-4 bg-white rounded border flex items-center justify-center">
+                            <img src={form.watch('signatureUrl')} alt="Signature" className="max-h-full max-w-full object-contain" />
+                            <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => form.setValue('signatureUrl', '')}><X className="h-4 w-4" /></Button>
+                          </div>
+                        ) : (
+                          <div className="py-8 text-center">
+                            <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                            <p className="text-sm text-gray-500">No signature uploaded</p>
+                          </div>
+                        )}
+                        <Input type="file" className="hidden" id="signature-upload" accept="image/*" onChange={(e) => { if (e.target.files) handleTemplateFileUpload(e.target.files[0], 'signature') }} disabled={isUploadingTemplate} />
+                        <Button type="button" variant="outline" className="w-full" asChild disabled={isUploadingTemplate}>
+                          <label htmlFor="signature-upload" className="cursor-pointer">
+                            {isUploadingTemplate ? 'Uploading...' : 'Upload Signature'}
+                          </label>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Stamp Upload */}
+                    <div className="space-y-4">
+                      <FormLabel>Clinic/Hospital Stamp (Optional)</FormLabel>
+                      <div className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-gray-800/20">
+                        {form.watch('stampUrl') ? (
+                          <div className="relative w-full h-32 mb-4 bg-white rounded border flex items-center justify-center">
+                            <img src={form.watch('stampUrl')} alt="Stamp" className="max-h-full max-w-full object-contain" />
+                            <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => form.setValue('stampUrl', '')}><X className="h-4 w-4" /></Button>
+                          </div>
+                        ) : (
+                          <div className="py-8 text-center">
+                            <Upload className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+                            <p className="text-sm text-gray-500">No stamp uploaded</p>
+                          </div>
+                        )}
+                        <Input type="file" className="hidden" id="stamp-upload" accept="image/*" onChange={(e) => { if (e.target.files) handleTemplateFileUpload(e.target.files[0], 'stamp') }} disabled={isUploadingTemplate} />
+                        <Button type="button" variant="outline" className="w-full" asChild disabled={isUploadingTemplate}>
+                          <label htmlFor="stamp-upload" className="cursor-pointer">
+                            {isUploadingTemplate ? 'Uploading...' : 'Upload Stamp'}
+                          </label>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
 
                 {/* Personal Details Tab */}
                 <TabsContent value="personal" className="mt-6 space-y-6">

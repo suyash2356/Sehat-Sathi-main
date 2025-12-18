@@ -25,7 +25,7 @@ export class WebRTCService {
   private isInitiator: boolean = false;
   private callId: string | null = null;
 
-  constructor(private config: WebRTCConfig) {}
+  constructor(private config: WebRTCConfig) { }
 
   async initializeCall(callId: string, isInitiator: boolean = false): Promise<void> {
     this.callId = callId;
@@ -104,28 +104,40 @@ export class WebRTCService {
       throw new Error('Peer connection not initialized');
     }
 
-    await this.peerConnection.addIceCandidate(candidate);
+    try {
+      await this.peerConnection.addIceCandidate(candidate);
+    } catch (error) {
+      console.error('Error adding ICE candidate:', error);
+    }
+  }
+
+  getSignalingState(): RTCSignalingState | null {
+    return this.peerConnection?.signalingState ?? null;
+  }
+
+  hasRemoteDescription(): boolean {
+    return !!this.peerConnection?.remoteDescription;
   }
 
   toggleAudio(): boolean {
     if (!this.localStream) return false;
-    
+
     const audioTracks = this.localStream.getAudioTracks();
     audioTracks.forEach(track => {
       track.enabled = !track.enabled;
     });
-    
+
     return audioTracks[0]?.enabled ?? false;
   }
 
   toggleVideo(): boolean {
     if (!this.localStream) return false;
-    
+
     const videoTracks = this.localStream.getVideoTracks();
     videoTracks.forEach(track => {
       track.enabled = !track.enabled;
     });
-    
+
     return videoTracks[0]?.enabled ?? false;
   }
 
@@ -133,11 +145,11 @@ export class WebRTCService {
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => track.stop());
     }
-    
+
     if (this.peerConnection) {
       this.peerConnection.close();
     }
-    
+
     this.localStream = null;
     this.remoteStream = null;
     this.peerConnection = null;

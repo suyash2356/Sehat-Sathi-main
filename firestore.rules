@@ -89,6 +89,29 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    // Prescriptions collection
+    match /prescriptions/{prescriptionId} {
+      // Public GET for QR code verification
+      allow get: if true;
+      
+      // List restricted to participants
+      allow list: if isAuthenticated() && (
+        request.auth.uid == resource.data.patientId || 
+        request.auth.uid == resource.data.doctorId ||
+        isAdmin()
+      );
+      
+      // Create: Only authenticated users (Doctors)
+      allow create: if isAuthenticated();
+      
+      // Delete: Participant or Admin (for 24h cleanup)
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.patientId || 
+        request.auth.uid == resource.data.doctorId ||
+        isAdmin()
+      );
+    }
+
     // Default: Deny everything else
     match /{allPaths=**} {
       allow read, write: if false;

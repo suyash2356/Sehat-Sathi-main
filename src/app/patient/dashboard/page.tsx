@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link'; // Import Link
 import { decryptData } from '@/lib/encryption';
-import { LogOut, AlertTriangle, User, Briefcase, MapPin, BadgeCheck, Star, MessageSquare } from 'lucide-react';
-import { addDoc } from 'firebase/firestore';
+import { LogOut, AlertTriangle, User, Briefcase, MapPin, BadgeCheck, Star, MessageSquare, FileText, Download, Clock } from 'lucide-react';
+import { addDoc, deleteDoc } from 'firebase/firestore';
 
 // Data structures for Patient, Doctor, Appointment
 interface PatientData {
@@ -39,6 +39,14 @@ interface Appointment {
   issue?: string;
 }
 
+interface Prescription {
+  id: string;
+  doctorName: string;
+  pdfUrl: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export default function PatientDashboardPage() {
   const auth = useAuth();
   const db = useFirestore();
@@ -55,6 +63,7 @@ export default function PatientDashboardPage() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
 
   // Check if join button should be enabled
   const isJoinEnabled = (scheduledTime: any) => {
@@ -116,6 +125,23 @@ export default function PatientDashboardPage() {
           fetchedAppointments.sort((a, b) => b.scheduledTime?.seconds - a.scheduledTime?.seconds);
           setAppointments(fetchedAppointments);
 
+          // 3. Fetch Prescriptions & Lazy Cleanup
+          const presQuery = query(collection(db, "prescriptions"), where("patientId", "==", user.uid));
+          const presSnapshot = await getDocs(presQuery);
+          const now = new Date();
+          const validPres: Prescription[] = [];
+
+          for (const d of presSnapshot.docs) {
+            const data = d.data();
+            const expiresAt = new Date(data.expiresAt);
+
+            if (expiresAt < now) {
+              await deleteDoc(d.ref);
+            } else {
+              validPres.push({ id: d.id, ...data } as Prescription);
+            }
+          }
+          setPrescriptions(validPres);
         } catch (err: any) {
           console.error("Dashboard loading error:", err);
           setError("Could not load dashboard. Please try again later.");
@@ -204,6 +230,44 @@ export default function PatientDashboardPage() {
             </Button>
           </CardHeader>
         </Card>
+
+        {/* Prescriptions Notification Section */}
+        {prescriptions.length > 0 && (
+          <Card className="mb-8 border-blue-100 bg-blue-50/30 dark:bg-blue-900/10 overflow-hidden shadow-sm">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <FileText className="h-5 w-5" /> Active Prescriptions
+                </CardTitle>
+                <CardDescription className="text-blue-600/70">
+                  Medical advice from your doctors. Download within 24 hours.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {prescriptions.map((pres) => (
+                <div key={pres.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-blue-100 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                      <FileText className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 dark:text-gray-100 text-sm sm:text-base">Prescription from Dr. {pres.doctorName}</p>
+                      <p className="text-xs text-blue-500 font-medium flex items-center gap-1 mt-1">
+                        <Clock className="h-3 w-3" /> Expires: {new Date(pres.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Today
+                      </p>
+                    </div>
+                  </div>
+                  <Button size="sm" asChild className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
+                    <a href={pres.pdfUrl} download={`Prescription_${pres.id}.pdf`} target="_blank" rel="noopener noreferrer">
+                      <Download className="h-4 w-4 mr-2" /> Download PDF
+                    </a>
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">

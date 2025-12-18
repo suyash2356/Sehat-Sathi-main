@@ -37,6 +37,7 @@ export function useVideoCall() {
 
   const webrtcService = useRef<WebRTCService | null>(null);
   const signalingService = useRef<SignalingService | null>(null);
+  const iceCandidateBuffer = useRef<RTCIceCandidateInit[]>([]);
 
   useEffect(() => {
     signalingService.current = SignalingService.getInstance();
@@ -110,42 +111,56 @@ export function useVideoCall() {
       const localStream = webrtcService.current.getLocalStream();
       setState(prev => ({ ...prev, localStream }));
 
+      const flushIceBuffer = async () => {
+        console.log(`Flushing ${iceCandidateBuffer.current.length} buffered ICE candidates`);
+        while (iceCandidateBuffer.current.length > 0) {
+          const candidate = iceCandidateBuffer.current.shift();
+          if (candidate && webrtcService.current) {
+            await webrtcService.current.addIceCandidate(candidate);
+          }
+        }
+      };
+
       // 4. Setup Signaling
       if (signalingService.current) {
         await signalingService.current.joinCall(
           callId,
+          user.uid,
           async (offer) => {
             // On Offer received
-            // If I am Initiator, I sent the offer (or older one), so ignore.
-            // If I am Receiver, I accept offer.
             if (!isInitiator) {
               console.log("Received Offer (as Receiver)");
               if (webrtcService.current) {
-                // Check if we are already connected or have processed an offer to avoid loops?
-                // WebRTCService typically handles state, but let's be safe.
                 const answer = await webrtcService.current.createAnswer(offer);
                 await signalingService.current?.sendAnswer(answer);
+                await flushIceBuffer();
               }
-            } else {
-              console.log("Ignored Offer (as Initiator)");
             }
           },
           async (answer) => {
             // On Answer received
-            // If I am Initiator, I accept answer.
-            // If I am Receiver, I sent the answer, so ignore.
             if (isInitiator) {
               console.log("Received Answer (as Initiator)");
               if (webrtcService.current) {
-                await webrtcService.current.setRemoteDescription(answer);
+                const state = webrtcService.current.getSignalingState();
+                if (state === 'have-local-offer') {
+                  await webrtcService.current.setRemoteDescription(answer);
+                  await flushIceBuffer();
+                } else {
+                  console.warn(`Ignoring answer received in signaling state: ${state}`);
+                }
               }
-            } else {
-              console.log("Ignored Answer (as Receiver)");
             }
           },
           async (candidate) => {
             if (webrtcService.current) {
-              await webrtcService.current.addIceCandidate(candidate);
+              // Only add candidate if remote description is set
+              if (webrtcService.current.hasRemoteDescription()) {
+                await webrtcService.current.addIceCandidate(candidate);
+              } else {
+                console.log("Buffering ICE candidate: Remote description not yet set");
+                iceCandidateBuffer.current.push(candidate);
+              }
             }
           }
         );

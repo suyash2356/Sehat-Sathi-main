@@ -11,6 +11,8 @@ export interface SignalingMessage {
 export class SignalingService {
   private static instance: SignalingService;
   private callId: string | null = null;
+  private currentUserUid: string | null = null;
+  private joinTime: number = Date.now();
   private unsubscribe: (() => void) | null = null;
   private unsubscribeCandidates: (() => void) | null = null;
 
@@ -24,8 +26,10 @@ export class SignalingService {
   }
 
   // Setups up listeners for remote offer/answer/candidates
-  async joinCall(callId: string, onOffer: (offer: any) => void, onAnswer: (answer: any) => void, onCandidate: (candidate: any) => void): Promise<void> {
+  async joinCall(callId: string, uid: string, onOffer: (offer: any) => void, onAnswer: (answer: any) => void, onCandidate: (candidate: any) => void): Promise<void> {
     this.callId = callId;
+    this.currentUserUid = uid;
+    this.joinTime = Date.now();
     const callDocRef = doc(db, 'calls', callId);
 
     // Ensure doc exists (if not, create it placeholder) - usually appointment creation does this or first joiner
@@ -39,9 +43,12 @@ export class SignalingService {
       const data = snapshot.data();
       if (!data) return;
 
-      // If we see an offer and we didn't create it (conceptually), but here simpler:
-      // The checking of "did I send this" is usually done by checking who set it, or state.
-      // We will just pass data up and let caller handle "ignore my own offer".
+      // Ignore messages sent by self
+      if (data.senderId === this.currentUserUid) return;
+
+      // Ignore stale messages from previous sessions
+      if (data.timestamp && data.timestamp < this.joinTime - 5000) return; // 5s grace
+
       if (data.offer) {
         onOffer(data.offer);
       }
@@ -56,7 +63,10 @@ export class SignalingService {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
           const data = change.doc.data();
-          onCandidate(data);
+          // Filter out candidates sent by self OR from previous sessions
+          if (data.senderId !== this.currentUserUid && (!data.timestamp || data.timestamp > this.joinTime - 5000)) {
+            onCandidate(data);
+          }
         }
       });
     });
@@ -65,22 +75,30 @@ export class SignalingService {
   async sendOffer(offer: RTCSessionDescriptionInit): Promise<void> {
     if (!this.callId) throw new Error('Not in a call');
     const callDocRef = doc(db, 'calls', this.callId);
-    await updateDoc(callDocRef, { offer });
+    await updateDoc(callDocRef, {
+      offer,
+      senderId: this.currentUserUid,
+      timestamp: Date.now()
+    });
   }
 
   async sendAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
     if (!this.callId) throw new Error('Not in a call');
     const callDocRef = doc(db, 'calls', this.callId);
-    await updateDoc(callDocRef, { answer });
+    await updateDoc(callDocRef, {
+      answer,
+      senderId: this.currentUserUid,
+      timestamp: Date.now()
+    });
   }
 
-  async sendIceCandidate(candidate: RTCIceCandidate, type: 'offer' | 'answer' = 'offer'): Promise<void> {
-    if (!this.callId) throw new Error('Not in a call');
+  async sendIceCandidate(candidate: RTCIceCandidate): Promise<void> {
+    if (!this.callId || !this.currentUserUid) throw new Error('Not in a call');
     const candidatesRef = collection(db, 'calls', this.callId, 'candidates');
-    // We can allow adding candidate directly
     await addDoc(candidatesRef, {
       ...candidate.toJSON(),
-      type // useful to distinguish who sent it if needed, or stick to simple
+      senderId: this.currentUserUid,
+      timestamp: Date.now()
     });
   }
 
