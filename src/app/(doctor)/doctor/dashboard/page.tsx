@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@/hooks/use-user';
 import { useFirestore } from '@/hooks/use-firebase';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { decryptData } from '@/lib/encryption';
 
 // Define types for our data
 interface Appointment {
@@ -22,6 +23,7 @@ interface Appointment {
   status: 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'noshow';
   appointmentType: string;
   issue?: string;
+  patientPhone?: string;
   reason?: string;
 }
 
@@ -74,10 +76,15 @@ export default function DoctorDashboardPage() {
           where('status', 'in', ['pending', 'accepted'])
         );
         const querySnapshot = await getDocs(q);
-        const apps = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
+        const apps = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            issue: decryptData(data.issue),
+            patientPhone: decryptData(data.patientPhone)
+          };
+        }) as Appointment[];
         setAppointments(apps);
 
         // Fetch HISTORY appointments (completed/cancelled/rejected/noshow)
@@ -87,10 +94,15 @@ export default function DoctorDashboardPage() {
           where('status', 'in', ['completed', 'rejected', 'cancelled', 'noshow'])
         );
         const historySnapshot = await getDocs(historyQuery);
-        const historyApps = historySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
+        const historyApps = historySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            issue: decryptData(data.issue),
+            patientPhone: decryptData(data.patientPhone)
+          };
+        }) as Appointment[];
         // Sort history by time (descending - newest first)
         historyApps.sort((a, b) => b.scheduledTime?.seconds - a.scheduledTime?.seconds);
         setHistoryAppointments(historyApps);
@@ -126,6 +138,16 @@ export default function DoctorDashboardPage() {
 
       // Update state locally
       if (['completed', 'noshow', 'rejected'].includes(newStatus)) {
+        // Cleanup call metadata if completed
+        if (newStatus === 'completed') {
+          try {
+            await deleteDoc(doc(db, 'calls', appointmentId));
+            console.log("Call metadata cleaned up for:", appointmentId);
+          } catch (cleanupError) {
+            console.error("Call cleanup failed:", cleanupError);
+          }
+        }
+
         // Remove from upcoming/pending and add to history
         const app = appointments.find(a => a.id === appointmentId);
         if (app) {
@@ -349,8 +371,8 @@ export default function DoctorDashboardPage() {
                               <p className="text-sm text-gray-500">{app.scheduledTime?.toDate().toLocaleDateString()} - {app.appointmentType === 'clinic_visit' ? 'Clinic' : 'Video'}</p>
                             </div>
                             <span className={`px-2 py-1 text-xs rounded-full font-bold ${app.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                app.status === 'noshow' ? 'bg-orange-100 text-orange-800' :
-                                  app.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-200'
+                              app.status === 'noshow' ? 'bg-orange-100 text-orange-800' :
+                                app.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-200'
                               }`}>
                               {app.status.toUpperCase()}
                             </span>

@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { encryptData } from '@/lib/encryption';
 import {
   BadgeCheck,
   MapPin,
@@ -42,6 +43,7 @@ const bookingSchema = z.object({
   doctorId: z.string().optional(),
   callType: z.enum(['video', 'voice', 'in-person'], { required_error: "Please select a call type." }),
   callNow: z.boolean().default(false),
+  isPrivate: z.boolean().default(false),
   appointmentDate: z.string().optional(),
   appointmentTime: z.string().optional(),
 }).refine(data => {
@@ -99,10 +101,11 @@ export default function MapPage() {
 
   const bookingForm = useForm<z.infer<typeof bookingSchema>>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: { name: '', phone: '', issue: '', doctorName: '', doctorId: '', callType: 'video', callNow: false, appointmentDate: '', appointmentTime: '' },
+    defaultValues: { name: '', phone: '', issue: '', doctorName: '', doctorId: '', callType: 'video', callNow: false, isPrivate: false, appointmentDate: '', appointmentTime: '' },
   });
 
   const callNow = bookingForm.watch('callNow');
+  const isPrivate = bookingForm.watch('isPrivate');
 
   // Listen for Auth Logic
   useEffect(() => {
@@ -243,9 +246,10 @@ export default function MapPage() {
       doctorId: selectedDoctor.id,
       doctorName: selectedDoctor.name,
       patientId: user.uid,
-      patientName: values.name, // Usually comes from user profile, but form allows override? keeping form value
-      patientPhone: values.phone,
-      issue: values.issue,
+      patientName: values.isPrivate ? "Private Patient" : values.name,
+      isPrivatePatient: values.isPrivate,
+      patientPhone: encryptData(values.phone),
+      issue: encryptData(values.issue),
       hospitalName: selectedDoctor.hospitalName,
       hospitalAddress: selectedDoctor.hospitalAddress,
       appointmentType: appointmentType,
@@ -256,7 +260,7 @@ export default function MapPage() {
       callType: values.callType
     };
 
-    console.log("Creating Appointment:", bookingDetails);
+
 
     try {
       const docRef = await addDoc(collection(db, 'appointments'), bookingDetails);
@@ -428,6 +432,17 @@ export default function MapPage() {
                   <div className="grid sm:grid-cols-3 gap-4 items-end">
                     <FormField control={bookingForm.control} name="callType" render={({ field }) => (<FormItem><FormLabel>Call Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select call type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="video">Video Call</SelectItem><SelectItem value="voice">Voice Call</SelectItem><SelectItem value="in-person">In-Person</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
                     <FormField control={bookingForm.control} name="callNow" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-fit"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Urgent: Call Now</FormLabel></div></FormItem>)} />
+                    <FormField control={bookingForm.control} name="isPrivate" render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-fit border-blue-200 bg-blue-50/30 dark:bg-blue-900/10">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="text-blue-700 dark:text-blue-300">Privacy Mode</FormLabel>
+                          <p className="text-[10px] text-blue-600/80">Doctor won't see your real name.</p>
+                        </div>
+                      </FormItem>
+                    )} />
                     {!callNow && (
                       <div className="grid grid-cols-2 gap-4">
                         <FormField control={bookingForm.control} name="appointmentDate" render={({ field }) => (<FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />

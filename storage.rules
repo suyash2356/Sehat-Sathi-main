@@ -2,14 +2,31 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow authenticated doctors to read/write files under their own folder
-    match /doctors/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Generic authentication check
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // You can add other public assets rules here if needed, for example:
-    // match /public/{allPaths=**} {
-    //   allow read: if true;
-    // }
+    // Allow authenticated doctors to read/write files under their own folder
+    match /doctors/{userId}/{allPaths=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Medical documents (Prescriptions, etc)
+    // Format: /prescriptions/{appointmentId}/{fileName}
+    match /prescriptions/{appointmentId}/{allPaths=**} {
+      function isAuthorized() {
+        let appointment = firestore.get(/databases/(default)/documents/appointments/$(appointmentId)).data;
+        return isAuthenticated() && (request.auth.uid == appointment.patientId || request.auth.uid == appointment.doctorId);
+      }
+      
+      allow read: if isAuthorized();
+      allow write: if isAuthorized();
+    }
+
+    // Default: forbid all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

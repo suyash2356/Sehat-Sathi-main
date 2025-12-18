@@ -32,26 +32,64 @@ export default function AdminDashboard() {
     const router = useRouter();
     const { user, loading: authLoading } = useUser();
 
-    // Protect Route - Strict Email Check
+    // Protect Route - Custom Claims Check
     useEffect(() => {
-        if (!authLoading) {
-            if (!user) {
-                router.push('/admin/login');
-            } else if (user.email !== 'admin@sehatsathi.com') {
+        const checkAdminClaim = async () => {
+            if (!authLoading && user) {
+                // Force refresh token to get latest claims
+                const token = await user.getIdTokenResult(true);
+
+                if (token.claims.isAdmin) {
+                    // Fully authorized via custom claim
+                    return;
+                }
+
+                // If no claim, check if we should bootstrap (first-time setup)
+                if (user.email === 'admin@sehatsathi.com') {
+                    try {
+                        const res = await fetch('/api/admin/set-claim', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ uid: user.uid, email: user.email })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            toast({ title: "Admin Claim Set", description: "Your account now has official admin privileges." });
+                            // Reload to apply new claim
+                            window.location.reload();
+                            return;
+                        }
+                    } catch (e) {
+                        console.error("Bootstrap error:", e);
+                    }
+                }
+
+                // Not authorized
                 toast({
                     variant: "destructive",
                     title: "Access Denied",
                     description: "You are not authorized to view this page.",
                 });
                 router.push('/');
+            } else if (!authLoading && !user) {
+                router.push('/admin/login');
             }
-        }
+        };
+
+        checkAdminClaim();
     }, [user, authLoading, router, toast]);
 
     useEffect(() => {
-        if (user && user.email === 'admin@sehatsathi.com') {
-            fetchPendingDoctors();
-        }
+        // Use a state or ref to check if user has admin claim
+        const verifyAndFetch = async () => {
+            if (user) {
+                const token = await user.getIdTokenResult();
+                if (token.claims.isAdmin) {
+                    fetchPendingDoctors();
+                }
+            }
+        };
+        verifyAndFetch();
     }, [user]);
 
     const fetchPendingDoctors = async () => {

@@ -13,6 +13,14 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Helper function to check admin role
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.isAdmin == true || 
+        request.auth.token.email == 'admin@sehatsathi.com'
+      );
+    }
+
     // Users collection (Patients/General Users)
     match /users/{userId} {
       allow read, write: if isOwner(userId);
@@ -28,54 +36,62 @@ service cloud.firestore {
       allow read: if true; 
       
       // Update: Owner can update profile, Admin can verify/reject (delete)
-      allow write: if isOwner(doctorId) || request.auth.token.email == 'admin@sehatsathi.com';
+      allow write: if isOwner(doctorId) || isAdmin();
       
       match /{subcollection}/{docId} {
-         allow read, write, delete: if isOwner(doctorId) || request.auth.token.email == 'admin@sehatsathi.com';
+         allow read, write, delete: if isOwner(doctorId) || isAdmin();
       }
     }
     
     // Appointments collection
     match /appointments/{appointmentId} {
-      // Create: Authenticated users (patients) can create booking requests
-      allow create: if isAuthenticated();
+      // Create: Only the patient themselves can create an appointment request with their UID
+      allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
       
       // Read: Users can only read appointments they are part of
       allow read: if isAuthenticated() && (
         request.auth.uid == resource.data.patientId || 
-        request.auth.uid == resource.data.doctorId
+        request.auth.uid == resource.data.doctorId ||
+        isAdmin()
       );
 
       // Update: Users can update appointments they are part of (e.g., status changes)
       allow update: if isAuthenticated() && (
         request.auth.uid == resource.data.patientId || 
-        request.auth.uid == resource.data.doctorId
+        request.auth.uid == resource.data.doctorId ||
+        isAdmin()
       );
     }
 
-    // Video calls
+    // Video calls (Signaling)
     match /calls/{callId} {
-      // Only participants (doctor or patient) can read/write call data
-      // For creation, we might not have data yet, so allow create if auth
-      allow create: if isAuthenticated();
-      
-      allow read, update: if isAuthenticated() && (
-        request.auth.uid == resource.data.patientId || 
-        request.auth.uid == resource.data.doctorId
-      );
-      
-      // Allow writing ICE candidates subcollection
-      match /candidates/{candidateId} {
-        allow read, write: if isAuthenticated();
+      // Only the initiator (patient) or the doctor for this specific appointment can create/access
+      // We assume the callId is the same as appointmentId for simple linkage
+      function isCallParticipant() {
+        let appointment = get(/databases/$(database)/documents/appointments/$(callId)).data;
+        return isAuthenticated() && (request.auth.uid == appointment.patientId || request.auth.uid == appointment.doctorId);
       }
+
+      allow create: if isAuthenticated(); // First joiner creates
+      allow read, update: if isCallParticipant();
       
-      match /offerCandidates/{candidateId} {
-        allow read, write: if isAuthenticated();
+      // Subcollections (Candidates)
+      match /{allSubcollections=**} {
+        allow read, write: if isCallParticipant();
       }
+    // Reviews collection
+    match /reviews/{reviewId} {
+      // Create: Only the patient who had the appointment can review
+      // We check that the requester matches the patientId in the review data
+      allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
       
-      match /answerCandidates/{candidateId} {
-        allow read, write: if isAuthenticated();
-      }
+      // Read: Publicly readable so other patients can see ratings
+      allow read: if true;
+    }
+
+    // Default: Deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

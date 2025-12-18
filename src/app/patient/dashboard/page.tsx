@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LogOut, AlertTriangle, User, Briefcase, MapPin, BadgeCheck } from 'lucide-react';
 import Link from 'next/link'; // Import Link
+import { decryptData } from '@/lib/encryption';
+import { LogOut, AlertTriangle, User, Briefcase, MapPin, BadgeCheck, Star, MessageSquare } from 'lucide-react';
+import { addDoc } from 'firebase/firestore';
 
 // Data structures for Patient, Doctor, Appointment
 interface PatientData {
@@ -49,6 +51,10 @@ export default function PatientDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState('');
+  const [reviewingApp, setReviewingApp] = useState<Appointment | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   // Check if join button should be enabled
   const isJoinEnabled = (scheduledTime: any) => {
@@ -98,7 +104,14 @@ export default function PatientDashboardPage() {
           // 3. Fetch Appointments
           const appQuery = query(collection(db, "appointments"), where("patientId", "==", user.uid));
           const appSnapshot = await getDocs(appQuery);
-          const fetchedAppointments = appSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment));
+          const fetchedAppointments = appSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              issue: decryptData(data.issue)
+            };
+          }) as Appointment[];
           // Sort by date (descending)
           fetchedAppointments.sort((a, b) => b.scheduledTime?.seconds - a.scheduledTime?.seconds);
           setAppointments(fetchedAppointments);
@@ -116,6 +129,34 @@ export default function PatientDashboardPage() {
 
     return () => unsubscribe();
   }, [auth, db, router, toast]);
+
+  const handleSubmitReview = async () => {
+    if (!reviewingApp || !db || isSubmittingReview) return;
+
+    setIsSubmittingReview(true);
+    try {
+      await addDoc(collection(db, "reviews"), {
+        doctorId: reviewingApp.doctorId,
+        doctorName: reviewingApp.doctorName,
+        patientId: auth?.currentUser?.uid,
+        patientName: patientData?.fullName || "Anonymous",
+        appointmentId: reviewingApp.id,
+        rating,
+        comment,
+        createdAt: new Date().toISOString()
+      });
+
+      toast({ title: "Review Submitted", description: "Thank you for your feedback!" });
+      setReviewingApp(null);
+      setComment('');
+      setRating(5);
+    } catch (err) {
+      console.error("Review error:", err);
+      toast({ title: "Error", description: "Failed to submit review.", variant: "destructive" });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const handleLogout = async () => {
     if (auth) {
@@ -236,7 +277,8 @@ export default function PatientDashboardPage() {
                           <span className={`px-2 py-1 text-xs rounded-full font-medium ${app.status === 'accepted' ? 'bg-green-100 text-green-800' :
                             app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                               app.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
+                                app.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
                             }`}>
                             {app.status.toUpperCase()}
                           </span>
@@ -264,6 +306,18 @@ export default function PatientDashboardPage() {
                             {!isJoinEnabled(app.scheduledTime) && <p className="text-[10px] text-gray-400 text-center mt-1">Available 2 mins before.</p>}
                           </div>
                         )}
+                        {app.status === 'completed' && (
+                          <div className="mt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full border-blue-200 text-blue-600 hover:bg-blue-50"
+                              onClick={() => setReviewingApp(app)}
+                            >
+                              <Star className="h-4 w-4 mr-2" /> Rate Experience
+                            </Button>
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -274,6 +328,48 @@ export default function PatientDashboardPage() {
             </Card>
           </div>
         </div>
+
+        {/* Review Modal */}
+        {reviewingApp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <Card className="w-full max-w-md animate-in fade-in zoom-in duration-200">
+              <CardHeader>
+                <CardTitle>Rate Dr. {reviewingApp.doctorName}</CardTitle>
+                <CardDescription>Tell us about your consultation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-center gap-2 mb-4">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setRating(s)}
+                      className={`p-1 transition-transform active:scale-95 ${rating >= s ? 'text-yellow-500' : 'text-gray-300'}`}
+                    >
+                      <Star className={`h-8 w-8 ${rating >= s ? 'fill-yellow-500' : ''}`} />
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Your Feedback</label>
+                  <textarea
+                    className="w-full p-3 border rounded-md min-h-[100px] text-sm focus:ring-2 focus:ring-primary outline-none"
+                    placeholder="Describe your experience..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" className="flex-1" onClick={() => setReviewingApp(null)} disabled={isSubmittingReview}>
+                    Cancel
+                  </Button>
+                  <Button className="flex-1" onClick={handleSubmitReview} disabled={!comment || isSubmittingReview}>
+                    {isSubmittingReview ? 'Submitting...' : 'Post Review'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
