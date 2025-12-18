@@ -37,10 +37,25 @@ export default function RootLayout({
       <head>
         <title>Sehat Sathi – Rural Healthcare AI Bot</title>
         <meta name="description" content="Providing rural India with instant, reliable healthcare guidance." />
+
+        {/* OpenGraph / Social Media visibility */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Sehat Sathi – Rural Healthcare AI Bot" />
+        <meta property="og:description" content="Providing rural India with instant, reliable healthcare guidance." />
+        <meta property="og:image" content="/logo.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="/logo.png" />
+
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
 
+        {/* Optimized Favicons for Browsers and Mobile */}
+        <link rel="icon" type="image/png" sizes="32x32" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/logo.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/logo.png" />
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="theme-color" content="#0ea5a1" />
       </head>

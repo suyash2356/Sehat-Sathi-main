@@ -45,6 +45,9 @@ export default function AdminLoginPage() {
         <div className="container flex items-center justify-center min-h-[calc(100vh-4rem)] py-10">
             <Card className="w-full max-w-md shadow-2xl">
                 <CardHeader className="text-center">
+                    <div className="flex justify-center mb-6">
+                        <img src="/logo.png" alt="Sehat Sathi" className="h-24 w-24 object-contain" />
+                    </div>
                     <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
                         <ShieldAlert className="h-10 w-10 text-primary" />
                     </div>

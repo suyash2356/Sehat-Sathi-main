@@ -214,7 +214,7 @@ export function Header() {
     // Render placeholder for SSR to match client structure
     return (
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between px-2 sm:px-6">
+        <div className="container flex h-24 items-center justify-between px-2 sm:px-6">
           <div className="flex flex-1 justify-start">
             <div className="w-10" />
           </div>
@@ -234,7 +234,7 @@ export function Header() {
   // -----------------------------------------------
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-2 sm:px-6">
+      <div className="container flex h-24 items-center justify-between px-2 sm:px-6">
         {/* Left Section */}
         <div className="flex flex-1 justify-start">
           {!isLandingPage ? (
@@ -252,8 +252,8 @@ export function Header() {
                   </SheetTitle>
                 </SheetHeader>
                 <Link href="/" className="flex items-center mb-8" onClick={() => setIsOpen(false)}>
-                  <img src="/logo.png" alt="Sehat Sathi" className="h-8 w-8 mr-2 object-contain" />
-                  <span className="font-bold font-headline">{t.appName}</span>
+                  <img src="/logo.png" alt="Sehat Sathi" className="h-20 w-20 mr-4 object-contain" />
+                  <span className="font-bold font-headline text-2xl">{t.appName}</span>
                 </Link>
                 <div className="flex flex-col space-y-6 flex-grow">
                   {navItems.map((item) => (
@@ -275,9 +275,9 @@ export function Header() {
 
         {/* Center Section */}
         <div className="flex-shrink-0 px-2">
-          <Link href="/" className="flex items-center space-x-2" onClick={() => setIsOpen(false)}>
-            <img src="/logo.png" alt="Sehat Sathi" className="h-8 w-8 sm:h-10 sm:w-10 object-contain" />
-            <span className="whitespace-nowrap text-lg sm:text-xl font-bold font-headline">
+          <Link href="/" className="flex items-center space-x-4" onClick={() => setIsOpen(false)}>
+            <img src="/logo.png" alt="Sehat Sathi" className="h-16 w-16 sm:h-20 sm:w-20 object-contain" />
+            <span className="whitespace-nowrap text-xl sm:text-2xl font-bold font-headline">
               {t.appName}
             </span>
           </Link>

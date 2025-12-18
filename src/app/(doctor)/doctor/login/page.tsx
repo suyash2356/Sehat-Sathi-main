@@ -33,8 +33,8 @@ export default function DoctorLoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) {
-        toast({ title: "Error", description: "Firebase not initialized.", variant: "destructive" });
-        return;
+      toast({ title: "Error", description: "Firebase not initialized.", variant: "destructive" });
+      return;
     }
 
     try {
@@ -52,8 +52,13 @@ export default function DoctorLoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Card className="w-full max-w-md mx-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <Link href="/" className="mb-8 flex flex-col items-center">
+        <img src="/logo.png" alt="Sehat Sathi" className="h-24 w-24 sm:h-32 sm:w-32 object-contain mb-4" />
+        <h1 className="text-3xl font-bold font-headline text-primary">Sehat Sathi</h1>
+        <p className="text-muted-foreground font-medium mt-1">Doctor Portal</p>
+      </Link>
+      <Card className="w-full max-w-md mx-auto shadow-xl">
         <CardHeader>
           <CardTitle>Doctor Login</CardTitle>
           <CardDescription>Log in to access your dashboard.</CardDescription>
@@ -88,12 +93,12 @@ export default function DoctorLoginPage() {
               </Button>
             </form>
           </Form>
-           <div className="mt-4 text-center text-sm">
-              Don't have an account?{" "}
-              <Link href="/doctor/signup" className="underline">
-                Sign Up
-              </Link>
-            </div>
+          <div className="mt-4 text-center text-sm">
+            Don't have an account?{" "}
+            <Link href="/doctor/signup" className="underline">
+              Sign Up
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

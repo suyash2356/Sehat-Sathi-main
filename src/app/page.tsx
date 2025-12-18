@@ -47,7 +47,8 @@ export default function LandingPage() {
           />
         )}
         <div className="absolute inset-0 bg-black/60" />
-        <div className="relative z-10 p-4 text-white max-w-4xl mx-auto">
+        <div className="relative z-10 p-4 text-white max-w-4xl mx-auto flex flex-col items-center">
+          <img src="/logo.png" alt="Sehat Sathi" className="h-24 w-24 sm:h-40 sm:w-40 object-contain mb-8 drop-shadow-2xl" />
           <h1 className="text-4xl md:text-6xl font-bold tracking-tight drop-shadow-md font-headline">
             {t.heroTitle}
           </h1>
@@ -65,14 +66,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-       <section id="features" className="py-16 md:py-24 bg-background">
+      <section id="features" className="py-16 md:py-24 bg-background">
         <div className="container">
-            <div className="text-center mb-12">
-                <h2 className="text-3xl md:text-4xl font-bold font-headline">{t.featuresTitle}</h2>
-                <p className="mt-2 text-lg text-muted-foreground max-w-3xl mx-auto">
-                    {t.featuresSubtitle}
-                </p>
-            </div>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold font-headline">{t.featuresTitle}</h2>
+            <p className="mt-2 text-lg text-muted-foreground max-w-3xl mx-auto">
+              {t.featuresSubtitle}
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((item, index) => (
               <Card key={index} className="text-center shadow-lg hover:shadow-xl hover:-translate-y-2 transition-all duration-300 flex flex-col">
@@ -83,7 +84,7 @@ export default function LandingPage() {
                   <CardTitle className="font-headline">{item.title}</CardTitle>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                    <p className="text-muted-foreground">{item.description}</p>
+                  <p className="text-muted-foreground">{item.description}</p>
                 </CardContent>
               </Card>
             ))}

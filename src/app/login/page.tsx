@@ -15,6 +15,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "fire
 import { LogIn, UserPlus, KeyRound, Mail, Eye, EyeOff } from 'lucide-react';
 import { useChatLanguage } from '@/hooks/use-chat-language';
 import { translations } from '@/lib/translations';
+import Link from 'next/link';
 
 // Define Zod schemas for validation
 const authSchema = z.object({
@@ -48,52 +49,56 @@ export default function LoginPage() {
   };
 
   async function onSubmit(values: z.infer<typeof authSchema>) {
-      if(!auth) return;
-      setIsSubmitting(true);
-      if (authType === 'signup') {
-        try {
-          await createUserWithEmailAndPassword(auth, values.email, values.password);
-          toast({
-            title: t.signUpSuccessTitle,
-            description: t.signUpSuccessDescription,
-          });
-          router.push('/health-guide');
-        } catch (error: any) {
-          let description = t.signUpFailedDescription;
-          if (error.code === 'auth/email-already-in-use') {
-            description = t.signUpFailedEmailInUse;
-          }
-          toast({
-            title: t.signUpFailedTitle,
-            description,
-            variant: 'destructive',
-          });
-        } finally {
-         setIsSubmitting(false);
-       }
-     } else { // Sign-in
-       try {
-         await signInWithEmailAndPassword(auth, values.email, values.password);
-         toast({
-           title: t.signInSuccessTitle,
-           description: t.signInSuccessDescription,
-         });
-         router.push('/health-guide'); 
-       } catch (error: any) {
-         let description = t.signInFailedDescription;
-         toast({
-           title: t.signInFailedTitle,
-           description,
-           variant: 'destructive',
-         });
-       } finally {
-         setIsSubmitting(false);
-       }
-     }
+    if (!auth) return;
+    setIsSubmitting(true);
+    if (authType === 'signup') {
+      try {
+        await createUserWithEmailAndPassword(auth, values.email, values.password);
+        toast({
+          title: t.signUpSuccessTitle,
+          description: t.signUpSuccessDescription,
+        });
+        router.push('/health-guide');
+      } catch (error: any) {
+        let description = t.signUpFailedDescription;
+        if (error.code === 'auth/email-already-in-use') {
+          description = t.signUpFailedEmailInUse;
+        }
+        toast({
+          title: t.signUpFailedTitle,
+          description,
+          variant: 'destructive',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else { // Sign-in
+      try {
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        toast({
+          title: t.signInSuccessTitle,
+          description: t.signInSuccessDescription,
+        });
+        router.push('/health-guide');
+      } catch (error: any) {
+        let description = t.signInFailedDescription;
+        toast({
+          title: t.signInFailedTitle,
+          description,
+          variant: 'destructive',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <Link href="/" className="mb-8 flex flex-col items-center">
+        <img src="/logo.png" alt="Sehat Sathi" className="h-24 w-24 sm:h-32 sm:w-32 object-contain mb-4" />
+        <h1 className="text-3xl font-bold font-headline text-primary">Sehat Sathi</h1>
+      </Link>
       <Card className="w-full max-w-md mx-auto shadow-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold font-headline flex items-center justify-center gap-2">
@@ -103,54 +108,54 @@ export default function LoginPage() {
           <CardDescription>{authType === 'login' ? t.subtitleLogin : t.subtitleSignup}</CardDescription>
         </CardHeader>
         <CardContent>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2"><Mail className="h-4 w-4"/> {t.emailLabel}</FormLabel>
-                        <FormControl>
-                            <Input type="email" placeholder="your.email@example.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                    <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2"><KeyRound className="h-4 w-4"/> {t.passwordLabel}</FormLabel>
-                        <FormControl>
-                            <div className="relative">
-                                <Input type={showPassword ? 'text' : 'password'} placeholder={authType === 'signup' ? t.passwordPlaceholderSignup : '••••••••'} {...field} />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400">
-                                    {showPassword ? <EyeOff className="h-5 w-5"/> : <Eye className="h-5 w-5"/>}
-                                </button>
-                            </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting
-                      ? (authType === 'login' ? t.submittingLogin : t.submittingSignup)
-                      : (authType === 'login' ? t.buttonLogin : t.buttonSignup)
-                    }
-                  </Button>
-                </form>
-            </Form>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2"><Mail className="h-4 w-4" /> {t.emailLabel}</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="your.email@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2"><KeyRound className="h-4 w-4" /> {t.passwordLabel}</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input type={showPassword ? 'text' : 'password'} placeholder={authType === 'signup' ? t.passwordPlaceholderSignup : '••••••••'} {...field} />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400">
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting
+                  ? (authType === 'login' ? t.submittingLogin : t.submittingSignup)
+                  : (authType === 'login' ? t.buttonLogin : t.buttonSignup)
+                }
+              </Button>
+            </form>
+          </Form>
           <div className="mt-4 text-center text-sm">
-          {authType === 'login'
+            {authType === 'login'
               ? <>{t.promptSignup} <button onClick={toggleAuthType} className="underline">{t.linkSignup}</button></>
               : <>{t.promptLogin} <button onClick={toggleAuthType} className="underline">{t.linkLogin}</button></>
-          }
+            }
           </div>
-           <p className="mt-6 text-center text-xs text-gray-500">
+          <p className="mt-6 text-center text-xs text-gray-500">
             In the future, we will integrate easy login through mobile number and OTP.
           </p>
         </CardContent>

@@ -22,9 +22,9 @@ export function Footer() {
     <footer className="bg-card border-t mt-auto">
       <div className="container py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-          <Link href="/" className="flex items-center space-x-2">
-            <BotMessageSquare className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg font-headline">{t.appName}</span>
+          <Link href="/" className="flex items-center space-x-3">
+            <img src="/logo.png" alt="Sehat Sathi" className="h-14 w-14 object-contain" />
+            <span className="font-bold text-xl font-headline">{t.appName}</span>
           </Link>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-medium">
             {navItems.map((item) => (

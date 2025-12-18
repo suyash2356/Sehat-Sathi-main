@@ -79,8 +79,13 @@ export default function DoctorSignUpPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 py-10">
-      <Card className="w-full max-w-lg mx-4 shadow-lg">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 py-10 px-4">
+      <Link href="/" className="mb-8 flex flex-col items-center">
+        <img src="/logo.png" alt="Sehat Sathi" className="h-24 w-24 sm:h-32 sm:w-32 object-contain mb-4" />
+        <h1 className="text-3xl font-bold font-headline text-primary">Sehat Sathi</h1>
+        <p className="text-muted-foreground font-medium mt-1">Doctor Registration</p>
+      </Link>
+      <Card className="w-full max-w-lg mx-auto shadow-lg">
         <CardHeader>
           <CardTitle>Create Doctor Account</CardTitle>
           <CardDescription>Sign up to manage your schedule and consultations.</CardDescription>

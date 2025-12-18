@@ -145,6 +145,7 @@ export default function MapPage() {
           ...h,
           contact: "0000000000", // Default contact for hospitals
           email: "info@gov.in",
+          address: h.hospitalAddress || "Government Hospital",
           availability: { dates: [], timeSlots: [] }
         })) as MapItem[];
 
@@ -293,7 +294,7 @@ export default function MapPage() {
               <SelectTrigger><SelectValue placeholder="Select Village" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Villages</SelectItem>
-                {availableVillages.length > 0 ? availableVillages.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>) : <SelectItem value="none" disabled>Select District First</SelectItem>}
+                {availableVillages.length > 0 ? availableVillages.map((v: string) => <SelectItem key={v} value={v}>{v}</SelectItem>) : <SelectItem value="none" disabled>Select District First</SelectItem>}
               </SelectContent>
             </Select>
           </div>

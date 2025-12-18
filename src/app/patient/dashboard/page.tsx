@@ -139,11 +139,14 @@ export default function PatientDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <Card className="mb-8 shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-3xl font-bold">Welcome, {patientData.fullName}!</CardTitle>
-              <CardDescription>Your central place to manage health appointments.</CardDescription>
+        <Card className="mb-8 shadow overflow-hidden">
+          <CardHeader className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <img src="/logo.png" alt="Sehat Sathi" className="h-16 w-16 object-contain" />
+              <div>
+                <CardTitle className="text-3xl font-bold">Welcome, {patientData.fullName}!</CardTitle>
+                <CardDescription>Your central place to manage health appointments.</CardDescription>
+              </div>
             </div>
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="mr-2 h-4 w-4" /> Logout
@@ -216,9 +219,9 @@ export default function PatientDashboardPage() {
                       <li key={app.id} className="p-4 bg-white dark:bg-gray-800 rounded-lg border shadow-sm">
                         <div className="flex justify-between items-start mb-2">
                           <span className={`px-2 py-1 text-xs rounded-full font-medium ${app.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                              app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                app.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
+                            app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              app.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
                             }`}>
                             {app.status.toUpperCase()}
                           </span>
