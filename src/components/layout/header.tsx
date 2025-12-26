@@ -3,13 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { signOut } from 'firebase/auth';
 import {
   Menu,
-  BotMessageSquare,
   Globe,
   LogOut,
   User as UserIcon,
@@ -20,6 +16,7 @@ import {
   MapPin,
   AlertTriangle,
 } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -53,72 +50,199 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+
 import { cn } from '@/lib/utils';
-import { useChatLanguage, setChatLanguage } from '@/hooks/use-chat-language';
 import { translations } from '@/lib/translations';
+import { useChatLanguage, setChatLanguage } from '@/hooks/use-chat-language';
 import { useToast } from '@/hooks/use-toast';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+
 import { useUser } from '@/hooks/use-user';
-import { useAuth } from '@/hooks/use-firebase';
+import { useAuth, useFirestore } from '@/hooks/use-firebase';
+
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  orderBy,
+  limit,
+  addDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+/* ------------------------------------------------------------------ */
+/* TYPES */
+/* ------------------------------------------------------------------ */
+
+interface NotificationContent {
+  id: string;
+  title: string;
+  message: string;
+  type: 'request' | 'join' | 'process' | 'download';
+  timestamp?: any;
+}
 
 const emergencySchema = z.object({
-  location: z
-    .string()
-    .min(10, { message: 'Please provide a detailed address or landmark.' }),
-  reason: z.string().min(5, { message: 'Please briefly describe the emergency.' }),
-  contact: z
-    .string()
-    .regex(/^\d{10}$/, { message: 'A 10-digit contact number is required.' }),
+  location: z.string().min(10),
+  reason: z.string().min(5),
+  contact: z.string().regex(/^\d{10}$/),
 });
 
 type EmergencyFormValues = z.infer<typeof emergencySchema>;
 
+/* ------------------------------------------------------------------ */
+/* HEADER */
+/* ------------------------------------------------------------------ */
+
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
-  const { user } = useUser();
+
+  const { user, loading } = useUser();
   const auth = useAuth();
+  const db = useFirestore();
+
   const { language, setLanguage } = useChatLanguage();
   const { toast } = useToast();
+
+  const [mounted, setMounted] = useState(false);
+  const [notification, setNotification] = useState<NotificationContent | null>(null);
+
+  const [isOpen, setIsOpen] = useState(false);
   const [isEmergencyFormOpen, setIsEmergencyFormOpen] = useState(false);
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const [emergencyDetails, setEmergencyDetails] = useState<EmergencyFormValues | null>(null);
-  const [mounted, setMounted] = useState(false); // 👈 Added for hydration safety
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => setMounted(true), []);
 
   const isLandingPage = pathname === '/';
   const t = translations[language];
 
+  /* ------------------------------------------------------------------
+     NOTIFICATION STATUS LISTENER (NO JOIN LOGIC HERE)
+  ------------------------------------------------------------------ */
+  useEffect(() => {
+    if (loading) return;
+    if (!user || !db || !mounted) return;
+    if (pathname.startsWith('/doctor')) return;
+
+    let unsubPrescription: (() => void) | null = null;
+
+    const apptQuery = query(
+      collection(db, 'appointments'),
+      where('patientId', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    );
+
+    const unsubAppt = onSnapshot(apptQuery, snap => {
+      if (snap.empty) {
+        setNotification(null);
+        if (unsubPrescription) unsubPrescription();
+        return;
+      }
+
+      const appt = snap.docs[0].data();
+      const apptId = snap.docs[0].id;
+
+      if (unsubPrescription) unsubPrescription();
+
+      const rxQuery = query(
+        collection(db, 'prescriptions'),
+        where('patientId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+
+      unsubPrescription = onSnapshot(rxQuery, rxSnap => {
+        if (!rxSnap.empty) {
+          const rx = rxSnap.docs[0].data();
+          const created = rx.createdAt?.toDate?.() ?? new Date();
+          if (Date.now() - created.getTime() < 24 * 60 * 60 * 1000) {
+            setNotification({
+              id: rxSnap.docs[0].id,
+              title: t.notificationTitles.ready,
+              message: t.notificationMessages.ready,
+              type: 'download',
+              timestamp: rx.createdAt,
+            });
+            return;
+          }
+        }
+
+        if (appt.status === 'pending') {
+          setNotification({
+            id: apptId,
+            title: t.notificationTitles.requestSent,
+            message: t.notificationMessages.requestSent,
+            type: 'request',
+          });
+        } else if (appt.status === 'accepted') {
+          setNotification({
+            id: apptId,
+            title: 'Request Accepted',
+            message: 'Waiting for doctor to start the call.',
+            type: 'request',
+          });
+        } else if (appt.status === 'completed') {
+          setNotification({
+            id: apptId,
+            title: t.notificationTitles.processing,
+            message: t.notificationMessages.processing,
+            type: 'process',
+          });
+        }
+      });
+    });
+
+    return () => {
+      unsubAppt();
+      if (unsubPrescription) unsubPrescription();
+    };
+  }, [user, loading, db, mounted, pathname, t]);
+
+  /* ------------------------------------------------------------------
+     EMERGENCY
+  ------------------------------------------------------------------ */
+
   const form = useForm<EmergencyFormValues>({
     resolver: zodResolver(emergencySchema),
-    defaultValues: {
-      location: '',
-      reason: '',
-      contact: '',
-    },
+    defaultValues: { location: '', reason: '', contact: '' },
   });
+
+  const onEmergencySubmit = (values: EmergencyFormValues) => {
+    setEmergencyDetails(values);
+    setIsEmergencyFormOpen(false);
+    setIsConfirmationOpen(true);
+  };
+
+  const confirmEmergencyCall = async () => {
+    if (!db || !emergencyDetails) return;
+
+    await addDoc(collection(db, 'emergency_alerts'), {
+      ...emergencyDetails,
+      patientId: user?.uid ?? 'anonymous',
+      status: 'active',
+      createdAt: serverTimestamp(),
+    });
+
+    setIsConfirmationOpen(false);
+    form.reset();
+    toast({ title: t.emergency.toastTitle, description: t.emergency.toastDescription });
+  };
 
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
-    toast({
-      title: t.logout.title,
-      description: t.logout.description,
-    });
     router.push('/');
   };
 
@@ -127,300 +251,110 @@ export function Header() {
     setLanguage(lang);
   };
 
-  const onEmergencySubmit = (values: EmergencyFormValues) => {
-    setEmergencyDetails(values);
-    setIsEmergencyFormOpen(false);
-    setIsConfirmationOpen(true);
-  };
+  if (!mounted) return null;
 
-  const confirmEmergencyCall = () => {
-    console.log('Emergency Confirmed:', emergencyDetails);
-    setIsConfirmationOpen(false);
-    form.reset();
-    toast({
-      title: t.emergency.toastTitle,
-      description: t.emergency.toastDescription,
-    });
-  };
+  /* ------------------------------------------------------------------
+     RENDER
+  ------------------------------------------------------------------ */
 
-  const navItems = [
-    { href: '/health-guide', label: t.nav.home },
-    { href: '/chatbot', label: t.nav.chatbot },
-    { href: '/services', label: t.nav.services },
-    { href: '/map', label: t.nav.map },
-    { href: '/about', label: t.nav.about },
-    { href: '/contact', label: t.nav.contact },
-  ];
-
-  const profileNavItem = { href: '/profile', label: t.nav.profile, icon: <UserIcon className="h-5 w-5" /> };
-  const insuranceNavItem = { href: '/insurance', label: t.nav.insurance, icon: <ShieldPlus className="h-5 w-5" /> };
-
-  const NavLink = ({
-    href,
-    label,
-    className,
-    onClick,
-    icon,
-  }: {
-    href: string;
-    label: string;
-    className?: string;
-    onClick?: (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
-    icon?: React.ReactNode;
-  }) => (
-    <Link
-      href={href}
-      className={cn(
-        'font-medium transition-colors hover:text-primary flex items-center gap-3',
-        pathname === href ? 'text-primary' : 'text-foreground/80',
-        className
-      )}
-      onClick={(e) => {
-        if (onClick) onClick(e);
-        setIsOpen(false);
-      }}
-    >
-      {icon}
-      <span>{label}</span>
-    </Link>
-  );
-
-  const LanguageSelector = () => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-10 w-10">
-          <Globe className="h-5 w-5" />
-          <span className="sr-only">Select Language</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleLanguageChange('en')}>
-          {translations.en.menu.english}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleLanguageChange('hi')}>
-          {translations.hi.menu.hindi}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleLanguageChange('mr')}>
-          {translations.mr.menu.marathi}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  // -----------------------------------------------
-  // ✅ Main Render
-  // -----------------------------------------------
-  if (!mounted) {
-    // Render placeholder for SSR to match client structure
-    return (
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-24 items-center justify-between px-2 sm:px-6">
-          <div className="flex flex-1 justify-start">
-            <div className="w-10" />
-          </div>
-          <div className="flex-shrink-0 px-2">
-            <span className="text-lg font-bold font-headline">Health AI</span>
-          </div>
-          <div className="flex flex-1 justify-end">
-            <div className="w-10" />
-          </div>
-        </div>
-      </header>
-    );
-  }
-
-  // -----------------------------------------------
-  // ✅ Full Interactive Header (client-side)
-  // -----------------------------------------------
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-24 items-center justify-between px-2 sm:px-6">
-        {/* Left Section */}
-        <div className="flex flex-1 justify-start">
-          {!isLandingPage ? (
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
+      <div className="container flex h-24 items-center justify-between px-4">
+
+        {/* LEFT */}
+        <div className="flex flex-1">
+          {!isLandingPage && (
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10">
-                  <Menu className="h-6 w-6" />
-                  <span className="sr-only">Toggle Menu</span>
-                </Button>
+                <Button variant="ghost" size="icon"><Menu /></Button>
               </SheetTrigger>
-              <SheetContent side="left" className="pr-0 flex flex-col w-full max-w-sm">
+              <SheetContent side="left">
                 <SheetHeader>
-                  <SheetTitle>
-                    <VisuallyHidden>Navigation Menu</VisuallyHidden>
-                  </SheetTitle>
+                  <SheetTitle><VisuallyHidden>Menu</VisuallyHidden></SheetTitle>
                 </SheetHeader>
-                <Link href="/" className="flex items-center mb-8" onClick={() => setIsOpen(false)}>
-                  <img src="/logo.png" alt="Sehat Sathi" className="h-20 w-20 mr-4 object-contain" />
-                  <span className="font-bold font-headline text-2xl">{t.appName}</span>
-                </Link>
-                <div className="flex flex-col space-y-6 flex-grow">
-                  {navItems.map((item) => (
-                    <NavLink key={item.href} {...item} className="text-lg" />
-                  ))}
-                </div>
-                {user && (
-                  <div className="mt-auto border-t pt-4 space-y-6">
-                    <NavLink {...profileNavItem} className="text-lg" />
-                    <NavLink {...insuranceNavItem} className="text-lg" />
-                  </div>
-                )}
+                <nav className="space-y-4 mt-6">
+                  <Link href="/" onClick={() => setIsOpen(false)}>Home</Link>
+                </nav>
               </SheetContent>
             </Sheet>
-          ) : (
-            <div className="w-10" />
           )}
         </div>
 
-        {/* Center Section */}
-        <div className="flex-shrink-0 px-2">
-          <Link href="/" className="flex items-center space-x-4" onClick={() => setIsOpen(false)}>
-            <img src="/logo.png" alt="Sehat Sathi" className="h-16 w-16 sm:h-20 sm:w-20 object-contain" />
-            <span className="whitespace-nowrap text-xl sm:text-2xl font-bold font-headline">
-              {t.appName}
-            </span>
-          </Link>
-        </div>
+        {/* CENTER */}
+        <Link href="/" className="font-bold text-xl">{t.appName}</Link>
 
-        {/* Right Section */}
+        {/* RIGHT */}
         <div className="flex flex-1 justify-end items-center gap-2">
+
           {!isLandingPage && (
             <>
-              {/* Emergency Button */}
+              {/* Emergency */}
               <Dialog open={isEmergencyFormOpen} onOpenChange={setIsEmergencyFormOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="destructive" size="icon" className="rounded-full h-9 w-9 flex-shrink-0">
-                    <Siren className="h-5 w-5" />
-                    <span className="sr-only">{t.emergency.buttonText}</span>
-                  </Button>
+                  <Button variant="destructive" size="icon"><Siren /></Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent>
                   <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 font-headline text-destructive">
-                      <Siren /> {t.emergency.formTitle}
-                    </DialogTitle>
+                    <DialogTitle>{t.emergency.formTitle}</DialogTitle>
                     <DialogDescription>{t.emergency.formDescription}</DialogDescription>
                   </DialogHeader>
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onEmergencySubmit)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4" /> {t.emergency.locationLabel}
-                            </FormLabel>
-                            <FormControl>
-                              <Textarea placeholder={t.emergency.locationPlaceholder} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="reason"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <AlertTriangle className="h-4 w-4" /> {t.emergency.reasonLabel}
-                            </FormLabel>
-                            <FormControl>
-                              <Input placeholder={t.emergency.reasonPlaceholder} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="contact"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <Phone className="h-4 w-4" /> {t.emergency.contactLabel}
-                            </FormLabel>
-                            <FormControl>
-                              <Input type="tel" placeholder={t.emergency.contactPlaceholder} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <FormField control={form.control} name="location" render={({ field }) => (
+                        <FormItem><FormLabel>Location</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="reason" render={({ field }) => (
+                        <FormItem><FormLabel>Reason</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="contact" render={({ field }) => (
+                        <FormItem><FormLabel>Contact</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
                       <DialogFooter>
-                        <Button type="submit" variant="destructive" className="w-full">
-                          {t.emergency.submitButton}
-                        </Button>
+                        <Button type="submit" variant="destructive">Send Alert</Button>
                       </DialogFooter>
                     </form>
                   </Form>
                 </DialogContent>
               </Dialog>
 
-              {/* Emergency Confirmation Dialog */}
-              <AlertDialog open={isConfirmationOpen} onOpenChange={setIsConfirmationOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2 font-headline">
-                      <AlertTriangle className="text-destructive" /> {t.emergency.confirmTitle}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription asChild>
-                      <div>
-                        {t.emergency.confirmMessage}
-                        <div className="my-4 p-4 bg-destructive/10 border border-destructive/50 rounded-lg text-center">
-                          <div className="font-semibold text-destructive">
-                            {t.emergency.emergencyNumberText}
-                          </div>
-                          <div className="text-2xl font-bold tracking-widest text-destructive">
-                            112
-                          </div>
-                        </div>
-                        {t.emergency.confirmSubtext}
-                      </div>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t.emergency.cancelButton}</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={confirmEmergencyCall}
-                      className="bg-destructive hover:bg-destructive/90"
-                    >
-                      {t.emergency.confirmButton}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {/* Notifications */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Bell />
+                    {notification && <span className="absolute h-2 w-2 bg-red-500 rounded-full" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80 p-4">
+                  {notification ? (
+                    <>
+                      <p className="font-semibold">{notification.title}</p>
+                      <p className="text-xs">{notification.message}</p>
+                    </>
+                  ) : (
+                    <p className="text-xs italic">{t.notificationMessages.noNew}</p>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-              <Button variant="ghost" size="icon" aria-label={t.notificationsAriaLabel} className="h-10 w-10">
-                <Bell className="h-5 w-5" />
-              </Button>
-              <LanguageSelector />
+              {/* Language */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon"><Globe /></Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => handleLanguageChange('en')}>English</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleLanguageChange('hi')}>Hindi</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleLanguageChange('mr')}>Marathi</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
 
           {user && !isLandingPage ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              aria-label={t.logout.ariaLabel}
-              className="h-10 w-10"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut /></Button>
           ) : (
-            pathname !== '/login' && (
-              <div className="flex items-center gap-2">
-                <Button asChild variant="secondary" size="sm">
-                  <Link href="/doctor/login">For Doctors</Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/login">{t.login.title}</Link>
-                </Button>
-              </div>
-            )
+            <Link href="/login"><Button size="sm">Login</Button></Link>
           )}
         </div>
       </div>

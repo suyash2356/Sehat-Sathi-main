@@ -8,7 +8,7 @@ import { Footer } from '@/components/layout/footer';
 import { Toaster } from "@/components/ui/toaster";
 import { useChatLanguage } from '@/hooks/use-chat-language';
 import { FirebaseProvider } from '@/hooks/use-firebase';
-import { CallNotificationManager } from '@/components/notifications/CallNotification';
+
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21,7 +21,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       <main className="flex-grow">{children}</main>
       {showFooter && <Footer />}
       <Toaster />
-      <CallNotificationManager />
     </>
   );
 }

@@ -39,6 +39,8 @@ const bookingSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   phone: z.string().regex(/^\d{10}$/, "Please enter a valid 10-digit phone number."),
   issue: z.string().min(10, "Please describe your issue in at least 10 characters."),
+  age: z.coerce.number().min(1, "Age must be at least 1.").max(120, "Please enter a valid age."),
+  gender: z.enum(['male', 'female', 'other'], { required_error: "Please select a gender." }),
   doctorName: z.string().optional(),
   doctorId: z.string().optional(),
   callType: z.enum(['video', 'voice', 'in-person'], { required_error: "Please select a call type." }),
@@ -101,7 +103,7 @@ export default function MapPage() {
 
   const bookingForm = useForm<z.infer<typeof bookingSchema>>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: { name: '', phone: '', issue: '', doctorName: '', doctorId: '', callType: 'video', callNow: false, isPrivate: false, appointmentDate: '', appointmentTime: '' },
+    defaultValues: { name: '', phone: '', issue: '', age: 0, gender: 'male', doctorName: '', doctorId: '', callType: 'video', callNow: false, isPrivate: false, appointmentDate: '', appointmentTime: '' },
   });
 
   const callNow = bookingForm.watch('callNow');
@@ -230,10 +232,10 @@ export default function MapPage() {
     // Determine status and type
     const isCallNow = values.callNow;
     const appointmentType = isCallNow
-      ? "video_now"
+      ? "video_call_immediate"
       : (values.callType === 'in-person' ? 'in_person' : 'video_scheduled'); // Defaulting voice to video_scheduled or handled same
 
-    const status = isCallNow ? "accepted" : "pending";
+    const status = "pending";
 
     // Calculate scheduled time
     let scheduledTimeTimestamp = Timestamp.now();
@@ -246,30 +248,38 @@ export default function MapPage() {
       doctorId: selectedDoctor.id,
       doctorName: selectedDoctor.name,
       patientId: user.uid,
-      patientName: values.isPrivate ? "Private Patient" : values.name,
-      isPrivatePatient: values.isPrivate,
-      patientPhone: encryptData(values.phone),
-      issue: encryptData(values.issue),
-      hospitalName: selectedDoctor.hospitalName,
-      hospitalAddress: selectedDoctor.hospitalAddress,
-      appointmentType: appointmentType,
+      // Standardized Schema matching BookAppointmentPage
+      patientDetails: {
+        name: values.isPrivate ? "Private Patient" : values.name,
+        age: Number(values.age),
+        gender: values.gender,
+        disease: encryptData(values.issue),
+        phone: encryptData(values.phone)
+      },
       status: status,
+      mode: isCallNow ? 'video' : (values.callType === 'in-person' ? 'visit' : 'video'), // Align mode
+      timing: isCallNow ? 'call_now' : 'scheduled',
       scheduledTime: scheduledTimeTimestamp,
       createdAt: Timestamp.now(),
-      // Additional info
-      callType: values.callType
+
+      // Legacy/Extra fields (Optional but kept for reference if rules allow)
+      doctorSpecialization: selectedDoctor.specialization,
+      hospitalName: selectedDoctor.hospitalName,
+      hospitalAddress: selectedDoctor.hospitalAddress,
+      isPrivatePatient: values.isPrivate
     };
 
 
 
     try {
       const docRef = await addDoc(collection(db, 'appointments'), bookingDetails);
-      toast({ title: "Success", description: "Appointment request created." });
 
       if (isCallNow) {
-        toast({ title: "Starting Emergency Call...", description: `Connecting you to ${selectedDoctor.name}.` });
-        router.push(`/video-call?callId=${docRef.id}`);
+        toast({ title: "Request Sent", description: "Your immediate call request has been sent." });
+        router.push('/patient/dashboard');
       } else {
+        toast({ title: "Request Sent", description: "Appointment scheduled. Waiting for doctor's approval." });
+        router.push('/patient/dashboard');
         bookingForm.reset();
       }
     } catch (e) {
@@ -422,9 +432,24 @@ export default function MapPage() {
             <Form {...bookingForm}>
               <form onSubmit={bookingForm.handleSubmit(onBookingSubmit)} className="space-y-4">
                 <fieldset disabled={!selectedDoctor} className="space-y-4">
-                  <div className="grid sm:grid-cols-4 gap-4">
+                  <div className="grid sm:grid-cols-5 gap-4">
                     <FormField control={bookingForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={bookingForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="Digit phone number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={bookingForm.control} name="age" render={({ field }) => (<FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" placeholder="25" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={bookingForm.control} name="gender" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={bookingForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input placeholder="10-digit number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={bookingForm.control} name="issue" render={({ field }) => (<FormItem><FormLabel>Health Issue</FormLabel><FormControl><Input placeholder="Describe symptoms" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     {/* Hidden doctor ID field */}
                     <FormField control={bookingForm.control} name="doctorId" render={({ field }) => (<FormItem className="hidden"><FormControl><Input {...field} value={selectedDoctor?.id || ''} /></FormControl></FormItem>)} />

@@ -13,53 +13,25 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Calendar, Clock, Loader2 } from 'lucide-react';
+import { AlertTriangle, Calendar, Clock, Loader2, Video, Phone, User } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { encryptData } from '@/lib/encryption';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// --- Interfaces and Schemas ---
+// Helper Interface
 interface DoctorData { fullName: string; specialization: string; }
-const daySchema = z.object({ day: z.string(), startTime: z.string(), endTime: z.string(), enabled: z.boolean() });
-type DaySchedule = z.infer<typeof daySchema>;
+interface DaySchedule { day: string; startTime: string; endTime: string; enabled: boolean; }
 
+// Validation Schema
 const formSchema = z.object({
   appointmentDate: z.string().min(1, "Please select a date."),
   appointmentTime: z.string().min(1, "Please select a time slot."),
-  appointmentType: z.enum(['video', 'clinic'], { required_error: "Please select appointment type." }),
-  reason: z.string().min(10, "Please provide a brief reason for your visit (min. 10 characters)."),
+  mode: z.enum(['video', 'voice', 'visit'], { required_error: "Select consultation mode." }),
+  issue: z.string().min(10, "Briefly describe your issue (min 10 chars)."),
+  age: z.coerce.number().min(1, "Age must be valid.").max(120),
+  gender: z.enum(['male', 'female', 'other'], { required_error: "Select gender." }),
 });
 
-// --- Helper Functions ---
-const generateTimeSlots = (date: string, schedule: DaySchedule[], existingAppointments: Timestamp[]): string[] => {
-  const dayOfWeek = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
-  const dayRule = schedule.find(d => d.day === dayOfWeek);
-  if (!dayRule || !dayRule.enabled) return [];
-
-  const slots: string[] = [];
-  const { startTime, endTime } = dayRule;
-  let currentTime = new Date(`${date}T${startTime}`);
-  const lastTime = new Date(`${date}T${endTime}`);
-  const now = new Date();
-
-  while (currentTime < lastTime) {
-    // If date is today, only show future times. Else show all times in range.
-    const isToday = new Date(date).toDateString() === now.toDateString();
-    if (!isToday || currentTime > now) {
-      const timeString = currentTime.toTimeString().substring(0, 5);
-      const isBooked = existingAppointments.some(appt => {
-        const apptDate = appt.toDate();
-        // Simple check: if booked within same hour/minute block
-        // In a real app you might check duration overlapping
-        return apptDate.getHours() === currentTime.getHours() && apptDate.getMinutes() === currentTime.getMinutes();
-      });
-      if (!isBooked) slots.push(timeString);
-    }
-
-    currentTime.setMinutes(currentTime.getMinutes() + 60); // 1-hour slots
-  }
-  return slots;
-};
-
-// --- Main Component ---
 export default function BookAppointmentPage() {
   const auth = useAuth();
   const db = useFirestore();
@@ -73,214 +45,258 @@ export default function BookAppointmentPage() {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      mode: 'video',
+      gender: 'male',
       appointmentDate: '',
       appointmentTime: '',
-      appointmentType: 'video', // Default to video
-      reason: ''
+      issue: '',
+      age: '' as unknown as number
     }
   });
 
+  // 1. Fetch Doctor
   useEffect(() => {
     if (!db || !doctorId) return;
-    const fetchInitialData = async () => {
+    const fetchData = async () => {
       try {
-        const doctorRef = doc(db, 'doctors', doctorId);
-        const availabilityRef = doc(db, 'doctors', doctorId, 'availability', 'default');
-        const [doctorSnap, availabilitySnap] = await Promise.all([getDoc(doctorRef), getDoc(availabilityRef)]);
+        const docRef = doc(db, 'doctors', doctorId);
+        const schedRef = doc(db, 'doctors', doctorId, 'availability', 'default');
+        const [docSnap, schedSnap] = await Promise.all([getDoc(docRef), getDoc(schedRef)]);
 
-        if (doctorSnap.exists()) setDoctor(doctorSnap.data() as DoctorData); else setError("Doctor not found.");
-        if (availabilitySnap.exists()) setAvailability(availabilitySnap.data().schedule); else setAvailability([]);
-      } catch (err) { setError("Failed to fetch doctor details."); } finally { setLoading(false); }
+        if (docSnap.exists()) setDoctor(docSnap.data() as DoctorData);
+        if (schedSnap.exists()) setAvailability(schedSnap.data().schedule || []);
+      } catch (err) { console.error(err); } finally { setLoading(false); }
     };
-    fetchInitialData();
+    fetchData();
   }, [db, doctorId]);
 
+  // 2. Generate Slots
   const handleDateChange = async (date: string) => {
     form.setValue("appointmentDate", date);
-    form.setValue("appointmentTime", ""); // Reset time when date changes
+    form.setValue("appointmentTime", "");
     if (!date || !db) return;
 
     setSlotsLoading(true);
     try {
-      const startOfDay = new Date(date); startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
+      // Find schedule for day
+      const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+      const dayRule = availability.find(d => d.day === dayName);
 
-      // Query 'appointments' instead of 'consultations' now
-      const q = query(collection(db, "appointments"), where("doctorId", "==", doctorId), where("scheduledTime", ">=", Timestamp.fromDate(startOfDay)), where("scheduledTime", "<=", Timestamp.fromDate(endOfDay)));
-      const querySnapshot = await getDocs(q);
-      const existing = querySnapshot.docs.map(doc => doc.data().scheduledTime as Timestamp);
+      if (!dayRule || !dayRule.enabled) {
+        setTimeSlots([]);
+      } else {
+        // Generate raw slots
+        const slots: string[] = [];
+        let curr = new Date(`2000-01-01T${dayRule.startTime}`);
+        const end = new Date(`2000-01-01T${dayRule.endTime}`);
+        while (curr < end) {
+          slots.push(curr.toTimeString().substring(0, 5));
+          curr.setMinutes(curr.getMinutes() + 60);
+        }
 
-      const newSlots = generateTimeSlots(date, availability, existing);
-      setTimeSlots(newSlots);
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Error", description: "Could not fetch time slots.", variant: "destructive" });
-    } finally { setSlotsLoading(false); }
-  }
+        // Filter booked slots (Optimistic check)
+        const startOfDay = new Date(date); startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
+        const q = query(collection(db, "appointments"),
+          where("doctorId", "==", doctorId),
+          where("scheduledTime", ">=", Timestamp.fromDate(startOfDay)),
+          where("scheduledTime", "<=", Timestamp.fromDate(endOfDay)));
 
+        const bookedSnaps = await getDocs(q);
+        const bookedTimes = bookedSnaps.docs.map(d => {
+          const t = d.data().scheduledTime.toDate();
+          return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`;
+        });
+
+        // Current time check if today
+        const now = new Date();
+        const isToday = new Date(date).toDateString() === now.toDateString();
+
+        const available = slots.filter(time => {
+          if (bookedTimes.includes(time)) return false;
+          if (isToday) {
+            const [h, m] = time.split(':').map(Number);
+            const slotDate = new Date(); slotDate.setHours(h, m, 0);
+            if (slotDate <= now) return false;
+          }
+          return true;
+        });
+        setTimeSlots(available);
+      }
+    } catch (e) { console.error(e); } finally { setSlotsLoading(false); }
+  };
+
+  // 3. Submit Scheduled Appointment
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const user = auth?.currentUser;
-    if (!user || !db || !doctor) {
-      toast({ title: "Error", description: "Authentication error. Please log in again.", variant: "destructive" });
-      return;
-    }
-
-    try {
-      const { appointmentDate, appointmentTime, reason, appointmentType } = values;
-      const appointmentTimestamp = Timestamp.fromDate(new Date(`${appointmentDate}T${appointmentTime}`));
-      const patientDoc = await getDoc(doc(db, 'patients', user.uid));
-      const patientName = patientDoc.exists() ? patientDoc.data().fullName : user.email;
-
-      await addDoc(collection(db, 'appointments'), {
-        doctorId: doctorId,
-        doctorName: doctor.fullName,
-        patientId: user.uid,
-        patientName: patientName,
-        scheduledTime: appointmentTimestamp,
-        reason: reason,
-        status: 'pending',
-        appointmentType: appointmentType === 'clinic' ? 'clinic_visit' : 'consultation',
-        createdAt: serverTimestamp(),
-      });
-
-      toast({ title: "Booking Successful!", description: `Your appointment with Dr. ${doctor.fullName} is confirmed.` });
-      router.push('/patient/dashboard');
-
-    } catch (err: any) {
-      console.error("Booking failed:", err);
-      toast({ title: "Booking Failed", description: `An unexpected error occurred: ${err.message}`, variant: "destructive" });
-    }
-  }
-
-  // Handle "Call Now" (Immediate Video Call)
-  const handleCallNow = async () => {
     const user = auth?.currentUser;
     if (!user || !db || !doctor) return;
 
     try {
-      const patientDoc = await getDoc(doc(db, 'patients', user.uid));
-      const patientName = patientDoc.exists() ? patientDoc.data().fullName : user.email;
+      const patientRef = doc(db, 'patients', user.uid);
+      const patientSnap = await getDoc(patientRef);
+      const patientData = patientSnap.exists() ? patientSnap.data() : { fullName: user.email };
 
-      const now = Timestamp.now();
+      const timestamp = Timestamp.fromDate(new Date(`${values.appointmentDate}T${values.appointmentTime}`));
 
-      const docRef = await addDoc(collection(db, 'appointments'), {
-        doctorId: doctorId,
+      await addDoc(collection(db, 'appointments'), {
+        doctorId,
         doctorName: doctor.fullName,
         patientId: user.uid,
-        patientName: patientName,
-        scheduledTime: now,
-        reason: "Immediate Consultation",
-        status: 'accepted', // Auto-accepted
-        appointmentType: 'video_call_immediate',
-        createdAt: serverTimestamp(),
+        patientDetails: {
+          name: patientData.fullName,
+          age: values.age,
+          gender: values.gender,
+          disease: encryptData(values.issue), // Encrypted
+          phone: patientData.phone ? encryptData(patientData.phone) : ''
+        },
+        status: 'pending', // Starts pending
+        mode: values.mode,
+        timing: 'scheduled',
+        scheduledTime: timestamp,
+        createdAt: serverTimestamp()
       });
 
-      toast({ title: "Starting Call...", description: "Connecting you to the doctor." });
-      // Redirect directly to video call
-      router.push(`/video-call?callId=${docRef.id}`);
+      toast({ title: "Request Sent", description: "Waiting for doctor approval." });
+      // Stay on page; do not navigate away. Patient should only receive notification in dashboard/messages.
+      // router.push('/patient/dashboard');
 
-    } catch (err: any) {
-      console.error("Call Now failed:", err);
-      toast({ title: "Call Failed", description: "Could not start immediate call.", variant: "destructive" });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Booking failed.", variant: "destructive" });
+    }
+  }
+
+  // 4. Handle "Call Now" (Immediate Request)
+  const handleCallNow = async () => {
+    const user = auth?.currentUser;
+    if (!user || !db || !doctor) return;
+
+    // Quick validation
+    const { issue, age, gender, mode } = form.getValues();
+    if (!issue || issue.length < 5) {
+      toast({ title: "Details Required", description: "Please enter your issue first.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const patientRef = doc(db, 'patients', user.uid);
+      const patientSnap = await getDoc(patientRef);
+      const patientData = patientSnap.exists() ? patientSnap.data() : { fullName: user.email };
+
+      await addDoc(collection(db, 'appointments'), {
+        doctorId,
+        doctorName: doctor.fullName,
+        patientId: user.uid,
+        patientDetails: {
+          name: patientData.fullName,
+          age: Number(age) || (patientData.age ? Number(patientData.age) : 0),
+          gender: gender || 'male',
+          disease: encryptData(issue),
+          phone: patientData.phone ? encryptData(patientData.phone) : ''
+        },
+        status: 'pending', // IMPORTANT: Starts pending, NOT accepted
+        mode: mode || 'video',
+        timing: 'call_now',
+        scheduledTime: Timestamp.now(), // For sorting
+        createdAt: serverTimestamp()
+      });
+
+      toast({ title: "Emergency Request Sent", description: "Please wait on your dashboard." });
+      // Stay on page; patient will receive notification in dashboard/messages. Do not auto-navigate.
+      // router.push('/patient/dashboard');
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Error", description: "Could not send request.", variant: "destructive" });
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  if (error) return <div className="flex items-center justify-center min-h-screen text-red-500"><AlertTriangle className="mr-2" /> {error}</div>;
-  if (!doctor) return null;
+
+  if (loading) return <div className="p-8 text-center">Loading Doctor...</div>;
+  if (!doctor) return <div className="p-8 text-center text-red-500">Doctor not found.</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between">
             <div>
-              <CardTitle>Book Appointment with Dr. {doctor.fullName}</CardTitle>
+              <CardTitle>Book Dr. {doctor.fullName}</CardTitle>
               <CardDescription>{doctor.specialization}</CardDescription>
             </div>
-            {/* Call Now Button */}
-            <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={handleCallNow}>
-              <Clock className="mr-2 h-4 w-4" /> Call Now (Urgent)
+            <Button variant="destructive" onClick={handleCallNow} className="animate-pulse">
+              <Video className="mr-2 h-4 w-4" /> Call Now (Urgent)
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-              <FormField control={form.control} name="appointmentType" render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel>Select Appointment Type</FormLabel>
+              {/* Mode Selection */}
+              <FormField control={form.control} name="mode" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Consultation Type</FormLabel>
                   <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      className="flex flex-col space-y-1"
-                    >
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="video" />
-                        </FormControl>
-                        <FormLabel className="font-normal">
-                          Video Consultation
-                        </FormLabel>
-                      </FormItem>
-                      <FormItem className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <RadioGroupItem value="clinic" />
-                        </FormControl>
-                        <FormLabel className="font-normal">
-                          Clinic Visit
-                        </FormLabel>
-                      </FormItem>
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
+                      <FormItem className="flex items-center space-x-2"><RadioGroupItem value="video" /><FormLabel>Video Call</FormLabel></FormItem>
+                      <FormItem className="flex items-center space-x-2"><RadioGroupItem value="voice" /><FormLabel>Voice Only</FormLabel></FormItem>
+                      <FormItem className="flex items-center space-x-2"><RadioGroupItem value="visit" /><FormLabel>Clinic Visit</FormLabel></FormItem>
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
 
-              <FormField control={form.control} name="appointmentDate" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>1. Select an Available Date</FormLabel>
-                  <FormControl><Input type="date" min={new Date().toISOString().split('T')[0]} {...field} onChange={(e) => handleDateChange(e.target.value)} /></FormControl>
-                  <FormMessage />
-                </FormItem>)}
-              />
-
-              {form.watch("appointmentDate") && (
-                <FormField control={form.control} name="appointmentTime" render={({ field }) => (
+              {/* Date & Time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField control={form.control} name="appointmentDate" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>2. Select an Available Time</FormLabel>
-                    {slotsLoading ? (
-                      <div className="flex items-center space-x-2"><Loader2 className="h-5 w-5 animate-spin" /> <p>Loading slots...</p></div>
-                    ) : timeSlots.length > 0 ? (
-                      <div className="grid grid-cols-4 gap-2 pt-2">
-                        {timeSlots.map(slot => (<Button key={slot} type="button" variant={field.value === slot ? "default" : "outline"} onClick={() => field.onChange(slot)}>{slot}</Button>))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 pt-2">No available slots on this day. Please select another date.</p>
-                    )}
+                    <FormLabel>Date</FormLabel>
+                    <FormControl><Input type="date" min={new Date().toISOString().split('T')[0]} {...field} onChange={e => handleDateChange(e.target.value)} /></FormControl>
                     <FormMessage />
-                  </FormItem>)}
-                />
-              )}
+                  </FormItem>
+                )} />
 
-              <FormField control={form.control} name="reason" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>3. Reason for Consultation</FormLabel>
-                  <FormControl><Textarea placeholder="Describe your symptoms or reason for visit..." {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>)}
-              />
+                {timeSlots.length > 0 && (
+                  <FormField control={form.control} name="appointmentTime" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Time</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Select Slot" /></SelectTrigger></FormControl>
+                        <SelectContent>{timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                )}
+              </div>
 
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || !form.formState.isValid}>
-                {form.formState.isSubmitting ? 'Confirming Booking...' : 'Confirm Scheduled Booking'}
-              </Button>
+              {/* Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="age" render={({ field }) => (
+                  <FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="gender" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Gender</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent><SelectItem value="male">Male</SelectItem><SelectItem value="female">Female</SelectItem></SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+
+              <FormField control={form.control} name="issue" render={({ field }) => (
+                <FormItem><FormLabel>Issue Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+
+              <Button type="submit" className="w-full" disabled={!form.formState.isValid}>Confirm Booking</Button>
             </form>
           </Form>
         </CardContent>

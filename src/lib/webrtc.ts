@@ -1,17 +1,24 @@
 'use client';
 
 export interface CallData {
-  id: string;
+  id: string; // This is the sessionId
+  appointmentId: string; // The specific appointment ID
   patientId: string;
   doctorId: string;
   scheduledTime?: Date;
   isImmediate: boolean;
-  status: 'pending' | 'active' | 'completed' | 'cancelled';
+  status: 'pending' | 'accepted' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'noshow';
   createdAt: Date;
   callLink: string;
   patientName: string;
   patientPhone: string;
   issue: string;
+  doctorName?: string;
+  doctorSpecialization?: string;
+  age?: number;
+  gender?: string;
+  callType?: 'video' | 'voice' | 'in-person';
+  mode?: 'video' | 'voice' | 'visit'; // Synced with new architecture
 }
 
 export interface WebRTCConfig {
@@ -119,23 +126,23 @@ export class WebRTCService {
     return !!this.peerConnection?.remoteDescription;
   }
 
-  toggleAudio(): boolean {
+  toggleAudio(enabled?: boolean): boolean {
     if (!this.localStream) return false;
 
     const audioTracks = this.localStream.getAudioTracks();
     audioTracks.forEach(track => {
-      track.enabled = !track.enabled;
+      track.enabled = enabled !== undefined ? enabled : !track.enabled;
     });
 
     return audioTracks[0]?.enabled ?? false;
   }
 
-  toggleVideo(): boolean {
+  toggleVideo(enabled?: boolean): boolean {
     if (!this.localStream) return false;
 
     const videoTracks = this.localStream.getVideoTracks();
     videoTracks.forEach(track => {
-      track.enabled = !track.enabled;
+      track.enabled = enabled !== undefined ? enabled : !track.enabled;
     });
 
     return videoTracks[0]?.enabled ?? false;

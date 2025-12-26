@@ -22,11 +22,14 @@ const db = getFirestore(app);
 const storage = getStorage(app);
 
 // Initialize App Check (ReCaptcha V3)
-if (typeof window !== 'undefined') {
+const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+if (typeof window !== 'undefined' && siteKey && siteKey.length > 10) {
     initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6Lc_your_site_key_here'),
+        provider: new ReCaptchaV3Provider(siteKey),
         isTokenAutoRefreshEnabled: true
     });
+} else if (typeof window !== 'undefined') {
+    // Do not initialize App Check if site key is not provided to avoid reCAPTCHA 400 errors in dev
 }
 
 export { app, auth, db, storage };

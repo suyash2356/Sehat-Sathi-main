@@ -43,78 +43,95 @@ service cloud.firestore {
       }
     }
     
-    // Appointments collection
+    // Patients collection (profiles)
+    match /patients/{patientId} {
+      // Owner can read/write their own patient profile
+      allow read, write: if isOwner(patientId) || isAdmin();
+      match /{sub}/{docId} {
+        allow read, write: if isOwner(patientId) || isAdmin();
+      }
+    }
+    
+    // 1. Appointments (Administrative Data)
     match /appointments/{appointmentId} {
-      // Create: Only the patient themselves can create an appointment request with their UID
+      // Create: Patient only
       allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
       
-      // Read: Users can only read appointments they are part of
+      // Read: Participants
       allow read: if isAuthenticated() && (
-        request.auth.uid == resource.data.patientId || 
-        request.auth.uid == resource.data.doctorId ||
+        resource.data.patientId == request.auth.uid || 
+        resource.data.doctorId == request.auth.uid ||
         isAdmin()
       );
 
-      // Update: Users can update appointments they are part of (e.g., status changes)
+      // Update: 
+      // - Doctor can accept/reject/start/complete
+      // - Patient can cancel (if pending)
       allow update: if isAuthenticated() && (
-        request.auth.uid == resource.data.patientId || 
-        request.auth.uid == resource.data.doctorId ||
-        isAdmin()
+        (resource.data.doctorId == request.auth.uid) ||
+        (resource.data.patientId == request.auth.uid && resource.data.status == 'pending')
       );
     }
 
-    // Video calls (Signaling)
-    match /calls/{callId} {
-      // Only the initiator (patient) or the doctor for this specific appointment can create/access
-      // We assume the callId is the same as appointmentId for simple linkage
-      function isCallParticipant() {
-        let appointment = get(/databases/$(database)/documents/appointments/$(callId)).data;
-        return isAuthenticated() && (request.auth.uid == appointment.patientId || request.auth.uid == appointment.doctorId);
+    // 2. Call Sessions (Real-Time Signaling)
+    match /callSessions/{sessionId} {
+      function isParticipant() {
+        return isAuthenticated() && (
+          resource.data.doctorId == request.auth.uid || 
+          resource.data.patientId == request.auth.uid
+        );
       }
 
-      allow create: if isAuthenticated(); // First joiner creates
-      allow read, update: if isCallParticipant();
-      
-      // Subcollections (Candidates)
-      match /{allSubcollections=**} {
-        allow read, write: if isCallParticipant();
+      // Read: Only participants (Split for better query support)
+      // Ensure the document explicitly lists the participant field and matches request.auth.uid
+      allow read: if isAuthenticated() && (
+        (resource.data.doctorId is string && resource.data.doctorId == request.auth.uid) || 
+        (resource.data.patientId is string && resource.data.patientId == request.auth.uid)
+      );
+
+      // Create: DOCTOR ONLY (The one listed in the data)
+      // Additional checks: must supply `appointmentId` and that appointment must exist and belong to the creating doctor
+      allow create: if isAuthenticated() && request.resource.data.doctorId == request.auth.uid
+        && request.resource.data.appointmentId is string
+        && exists(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId))
+        && get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.doctorId == request.auth.uid;
+
+      // Update: Participants (Signaling: Offer/Answer)
+      allow update: if isAuthenticated() && (
+        resource.data.doctorId == request.auth.uid || 
+        resource.data.patientId == request.auth.uid
+      );
+
+      // Delete: DOCTOR ONLY (End Call)
+      allow delete: if isAuthenticated() && resource.data.doctorId == request.auth.uid;
+
+      // Subcollection: ICE Candidates
+      match /candidates/{candidateId} {
+         // To avoid get() calls on the parent which can cause permission evaluation issues during queries,
+         // allow authenticated users to read candidate docs (they are stored under a non-guessable session id).
+         // Creation is restricted to the authenticated sender.
+         allow create: if isAuthenticated() && request.resource.data.senderId == request.auth.uid;
+         allow read: if isAuthenticated();
+         allow delete: if isAuthenticated() && (resource.data.senderId == request.auth.uid ||
+           // allow doctor to remove candidates under their session
+           exists(/databases/$(database)/documents/callSessions/$(sessionId)) &&
+           get(/databases/$(database)/documents/callSessions/$(sessionId)).data.doctorId == request.auth.uid);
       }
-    // Reviews collection
-    match /reviews/{reviewId} {
-      // Create: Only the patient who had the appointment can review
-      // We check that the requester matches the patientId in the review data
-      allow create: if isAuthenticated() && request.resource.data.patientId == request.auth.uid;
-      
-      // Read: Publicly readable so other patients can see ratings
-      allow read: if true;
     }
 
-    // Prescriptions collection
+    // 3. Prescriptions (Restored)
     match /prescriptions/{prescriptionId} {
-      // Public GET for QR code verification
-      allow get: if true;
-      
-      // List restricted to participants
-      allow list: if isAuthenticated() && (
-        request.auth.uid == resource.data.patientId || 
-        request.auth.uid == resource.data.doctorId ||
+      allow read: if isAuthenticated() && (
+        resource.data.patientId == request.auth.uid || 
+        resource.data.doctorId == request.auth.uid ||
         isAdmin()
       );
       
-      // Create: Only authenticated users (Doctors)
-      allow create: if isAuthenticated();
+      // Doctors create for their patients
+      allow create: if isAuthenticated() && request.resource.data.doctorId == request.auth.uid;
       
-      // Delete: Participant or Admin (for 24h cleanup)
-      allow delete: if isAuthenticated() && (
-        request.auth.uid == resource.data.patientId || 
-        request.auth.uid == resource.data.doctorId ||
-        isAdmin()
-      );
-    }
-
-    // Default: Deny everything else
-    match /{allPaths=**} {
-      allow read, write: if false;
+      // Admin deletes
+      allow update, delete: if isAdmin();
     }
   }
 }
