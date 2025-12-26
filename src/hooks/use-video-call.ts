@@ -196,7 +196,7 @@ export function useVideoCall() {
     // But better to use the last known callData content
   };
 
-  const endCall = async () => {
+  const endCall = async (_flag?: boolean) => {
     // 1. Delete Session Doc (Signals end to everyone)
     if (sessionIdRef.current && state.callData) {
       try {

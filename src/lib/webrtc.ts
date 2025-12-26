@@ -19,6 +19,12 @@ export interface CallData {
   gender?: string;
   callType?: 'video' | 'voice' | 'in-person';
   mode?: 'video' | 'voice' | 'visit'; // Synced with new architecture
+  patientDetails?: {
+    name?: string;
+    age?: number;
+    gender?: string;
+    phone?: string;
+  };
 }
 
 export interface WebRTCConfig {
