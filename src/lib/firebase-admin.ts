@@ -1,20 +1,48 @@
 import * as admin from 'firebase-admin';
 
-const serviceAccount = {
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-};
+let adminApp: admin.app.App | null = null;
 
-if (!admin.apps.length) {
+function getServiceAccount() {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+    if (!projectId || !clientEmail || !privateKey) return null;
+
+    return { projectId, clientEmail, privateKey };
+}
+
+export function initAdminIfNeeded() {
+    if (adminApp) return adminApp;
+    const svc = getServiceAccount();
+    if (!svc) {
+        console.warn('Skipping Firebase admin initialization: service account not provided.');
+        return null;
+    }
+
     try {
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
+        adminApp = admin.initializeApp({
+            credential: admin.credential.cert(svc as any),
         });
+        return adminApp;
     } catch (error) {
         console.error('Firebase admin initialization error', error);
+        return null;
     }
 }
 
-export const adminAuth = admin.auth();
-export const adminDb = admin.firestore();
+export function getAdminAuth() {
+    const app = initAdminIfNeeded();
+    if (!app) return null;
+    return admin.auth(app);
+}
+
+export function getAdminDb() {
+    const app = initAdminIfNeeded();
+    if (!app) return null;
+    return admin.firestore(app);
+}
+
+export function isAdminAvailable() {
+    return !!initAdminIfNeeded();
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb, adminAuth } from '@/lib/firebase-admin';
+import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { Timestamp } from 'firebase-admin/firestore';
@@ -13,6 +13,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminDb();
+    if (!adminAuth || !adminDb) {
+      return NextResponse.json(
+        { error: 'Firebase admin not configured in this environment' },
+        { status: 500 }
+      );
+    }
     /* ------------------------------------
        1. AUTHENTICATION
     ------------------------------------ */

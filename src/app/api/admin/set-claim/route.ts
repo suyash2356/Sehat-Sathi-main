@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
+import { getAdminAuth } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
     try {
+        const adminAuth = getAdminAuth();
+        if (!adminAuth) {
+            return NextResponse.json(
+                { success: false, error: 'Firebase admin not configured in this environment' },
+                { status: 500 }
+            );
+        }
+
         const { uid, email, secret } = await request.json();
 
         // Verification: Bootstrap using hardcoded email OR a secret environment variable
