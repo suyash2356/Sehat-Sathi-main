@@ -327,7 +327,7 @@ export default function VideoCall() {
           variant="destructive"
           size="lg"
           className="h-12 px-6 rounded-xl font-bold uppercase tracking-widest gap-2 bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/20"
-          onClick={() => endCall(true)}
+          onClick={() => endCall()}
         >
           <PhoneOff className="h-4 w-4 fill-current" /> End Call
         </Button>
