@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 
 export interface Hospital {
-  id: number;
+  id?: number;
   name: string;
   address: string;
   lat: number;
@@ -43,7 +43,7 @@ const GoogleMapEmbed: React.FC<GoogleMapEmbedProps> = ({ hospitals, onBookAppoin
 
   useEffect(() => {
     const scriptId = "google-maps-script";
-    
+
     const loadScript = () => {
       if ((window as any).google && (window as any).google.maps) {
         setMapLoaded(true);
@@ -92,9 +92,10 @@ const GoogleMapEmbed: React.FC<GoogleMapEmbedProps> = ({ hospitals, onBookAppoin
 
       if (hospitals.length > 0) {
         const bounds = new (window as any).google.maps.LatLngBounds();
-        hospitals.forEach(hospital => {
+        hospitals.forEach((hospital, index) => {
+          const hospitalId = hospital.id ?? index;
           bounds.extend(new (window as any).google.maps.LatLng(hospital.lat, hospital.lng));
-          
+
           const marker = new (window as any).google.maps.Marker({
             position: { lat: hospital.lat, lng: hospital.lng },
             map: mapInstance,
@@ -108,16 +109,16 @@ const GoogleMapEmbed: React.FC<GoogleMapEmbedProps> = ({ hospitals, onBookAppoin
               ${hospital.specialties ? `<p style="margin: 0 0 5px 0;"><strong>${translations.specialties}:</strong> ${hospital.specialties}</p>` : ''}
               ${hospital.timing ? `<p style="margin: 0 0 5px 0;"><strong>${translations.timings}:</strong> ${hospital.timing}</p>` : ''}
               ${hospital.contact ? `<p style="margin: 0 0 10px 0;"><strong>${translations.contact}:</strong> ${hospital.contact}</p>` : ''}
-              <button id="book-appointment-btn-${hospital.id}" class="map-book-button">${translations.bookAppointment}</button>
+              <button id="book-appointment-btn-${hospitalId}" class="map-book-button">${translations.bookAppointment}</button>
             </div>
           `;
-          
+
           marker.addListener('click', () => {
             infoWindow.setContent(content);
             infoWindow.open(mapInstance, marker);
-            
+
             (window as any).google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
-              document.getElementById(`book-appointment-btn-${hospital.id}`)?.addEventListener('click', () => {
+              document.getElementById(`book-appointment-btn-${hospitalId}`)?.addEventListener('click', () => {
                 onBookAppointment(hospital);
               });
             });
@@ -129,13 +130,13 @@ const GoogleMapEmbed: React.FC<GoogleMapEmbedProps> = ({ hospitals, onBookAppoin
         mapInstance.fitBounds(bounds);
 
         if (hospitals.length === 1) {
-            const listener = (window as any).google.maps.event.addListenerOnce(mapInstance, 'idle', () => {
-                if (mapInstance.getZoom() > 14) mapInstance.setZoom(14);
-            });
+          const listener = (window as any).google.maps.event.addListenerOnce(mapInstance, 'idle', () => {
+            if (mapInstance.getZoom() > 14) mapInstance.setZoom(14);
+          });
 
-            return () => {
-                (window as any).google.maps.event.removeListener(listener);
-            };
+          return () => {
+            (window as any).google.maps.event.removeListener(listener);
+          };
         }
 
       } else {
@@ -154,7 +155,7 @@ const GoogleMapEmbed: React.FC<GoogleMapEmbedProps> = ({ hospitals, onBookAppoin
           <p>Loading Map...</p>
         </div>
       )}
-       <style jsx global>{`
+      <style jsx global>{`
         .map-book-button {
           background-color: hsl(205 78% 46%);
           color: white;

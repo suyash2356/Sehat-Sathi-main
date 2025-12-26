@@ -36,11 +36,11 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-24">
+          <div className="flex items-center justify-between h-16 md:h-24">
             <div className="flex items-center">
               <Link href="/" className="flex items-center font-bold text-2xl text-gray-800 dark:text-white">
-                <img src="/logo.png" alt="Sehat Sathi" className="h-20 w-auto mr-4 object-contain" />
-                <span>Doctor Portal</span>
+                <img src="/logo.png" alt="Sehat Sathi" className="h-12 md:h-20 w-auto mr-4 object-contain" />
+                <span className="text-xl md:text-2xl">Doctor Portal</span>
               </Link>
             </div>
             <nav className="hidden md:flex items-center space-x-4">

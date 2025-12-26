@@ -49,32 +49,32 @@ const emergencyMessage = (lang: 'en' | 'hi' | 'mr') => `
 `;
 
 function parseMarkdownLinks(text: string) {
-    const lines = text.trim().split('\n');
-    return (
-      <div className="space-y-2">
-        {lines.map((line, index) => {
-          const match = line.match(/\[(.*?)\]\((.*?)\)/);
-          if (match) {
-            const preText = line.substring(0, match.index);
-            return (
-              <p key={index}>
-                {preText}
-                <a href={match[2]} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
-                  {match[1]}
-                </a>
-              </p>
-            );
-          }
-          const boldMatch = line.match(/\*\*(.*?)\*\*/);
-          if (boldMatch) {
-            const preText = line.substring(0, boldMatch.index);
-            const postText = line.substring(boldMatch.index! + boldMatch[0].length);
-             return <p key={index}>{preText}<strong className="font-semibold">{boldMatch[1]}</strong>{postText}</p>
-          }
-          return <p key={index}>{line}</p>;
-        })}
-      </div>
-    );
+  const lines = text.trim().split('\n');
+  return (
+    <div className="space-y-2">
+      {lines.map((line, index) => {
+        const match = line.match(/\[(.*?)\]\((.*?)\)/);
+        if (match) {
+          const preText = line.substring(0, match.index);
+          return (
+            <p key={index}>
+              {preText}
+              <a href={match[2]} target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">
+                {match[1]}
+              </a>
+            </p>
+          );
+        }
+        const boldMatch = line.match(/\*\*(.*?)\*\*/);
+        if (boldMatch) {
+          const preText = line.substring(0, boldMatch.index);
+          const postText = line.substring(boldMatch.index! + boldMatch[0].length);
+          return <p key={index}>{preText}<strong className="font-semibold">{boldMatch[1]}</strong>{postText}</p>
+        }
+        return <p key={index}>{line}</p>;
+      })}
+    </div>
+  );
 }
 
 export function ChatInterface() {
@@ -110,7 +110,7 @@ export function ChatInterface() {
       scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
-  
+
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
     if (lastMessage?.sender === 'bot' && lastMessage.audioUrl) {
@@ -126,7 +126,7 @@ export function ChatInterface() {
   const processUserMessage = async (userMessage: string, photoDataUri?: string) => {
     addMessage(userMessage, 'user', { imageUrl: photoDataUri });
     setIsTyping(true);
-    if(photoDataUri) setUploadedImage(null);
+    if (photoDataUri) setUploadedImage(null);
 
     const lowerCaseMessage = userMessage.toLowerCase();
     let botResponseText: string;
@@ -157,7 +157,7 @@ export function ChatInterface() {
         botResponse = botResponseText;
       }
     }
-    
+
     try {
       const ttsResult = await textToSpeech(botResponseText);
       addMessage(botResponse, 'bot', { audioUrl: ttsResult.audio });
@@ -165,7 +165,7 @@ export function ChatInterface() {
       console.error('TTS Error:', error);
       addMessage(botResponse, 'bot');
     }
-    
+
     setIsTyping(false);
   };
 
@@ -174,60 +174,60 @@ export function ChatInterface() {
       recognitionRef.current?.stop();
       setIsRecording(false);
     } else {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         toast({
-            title: "Speech Recognition Not Supported",
-            description: "Your browser does not support Speech Recognition. Please try Chrome or Firefox.",
-            variant: "destructive",
+          title: "Speech Recognition Not Supported",
+          description: "Your browser does not support Speech Recognition. Please try Chrome or Firefox.",
+          variant: "destructive",
         });
         return;
       }
-      
+
       const recognition = new SpeechRecognition();
       recognition.lang = language === 'hi' ? 'hi-IN' : language === 'mr' ? 'mr-IN' : 'en-US';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
-      
+
       recognition.onstart = () => {
         setIsRecording(true);
       };
-      
-      recognition.onresult = (event) => {
+
+      recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         form.setValue('message', transcript);
         processUserMessage(transcript, uploadedImage ?? undefined);
         form.reset();
       };
-      
-      recognition.onerror = (event) => {
+
+      recognition.onerror = (event: any) => {
         console.error('Speech recognition error', event.error);
         let title = "Speech Recognition Error";
         let description = "An unknown error occurred.";
 
         if (event.error === 'not-allowed') {
-            title = "Microphone Access Denied";
-            description = "To use voice input, please allow microphone access in your browser settings and refresh the page.";
+          title = "Microphone Access Denied";
+          description = "To use voice input, please allow microphone access in your browser settings and refresh the page.";
         } else if (event.error === 'no-speech') {
-            title = "No Speech Detected";
-            description = "Please try speaking again.";
+          title = "No Speech Detected";
+          description = "Please try speaking again.";
         } else if (event.error === 'network') {
-            title = "Network Error";
-            description = "A network error occurred with the speech recognition service. Please check your connection.";
+          title = "Network Error";
+          description = "A network error occurred with the speech recognition service. Please check your connection.";
         }
-        
+
         toast({ title, description, variant: 'destructive' });
       };
 
       recognition.onend = () => {
         setIsRecording(false);
       };
-      
+
       recognition.start();
       recognitionRef.current = recognition;
     }
   };
-  
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -267,7 +267,7 @@ export function ChatInterface() {
           </div>
         </div>
       </div>
-      
+
       <ScrollArea className="flex-1" viewportRef={scrollViewportRef}>
         <div className="p-4 space-y-4">
           {messages.map((msg) => (
@@ -299,16 +299,16 @@ export function ChatInterface() {
             </div>
           ))}
           {isTyping && (
-             <div className="flex items-end gap-2 justify-start">
-               <Bot className="h-6 w-6 shrink-0 text-primary" />
-               <div className="bg-secondary rounded-xl p-3 rounded-bl-none shadow-sm">
-                 <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce"></span>
-                 </div>
-               </div>
-             </div>
+            <div className="flex items-end gap-2 justify-start">
+              <Bot className="h-6 w-6 shrink-0 text-primary" />
+              <div className="bg-secondary rounded-xl p-3 rounded-bl-none shadow-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                  <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                  <span className="h-2 w-2 bg-muted-foreground rounded-full animate-bounce"></span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </ScrollArea>
@@ -340,7 +340,7 @@ export function ChatInterface() {
                 </FormItem>
               )}
             />
-             <input
+            <input
               type="file"
               ref={fileInputRef}
               onChange={handleImageUpload}

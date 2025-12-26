@@ -15,8 +15,8 @@ export function useCollection<T>(
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  const memoizedQuery = useMemo(() => query, [query?.path, query?.type]);
+
+  const memoizedQuery = useMemo(() => query, [(query as any)?.path, (query as any)?.type]);
 
   useEffect(() => {
     if (!memoizedQuery) {
@@ -24,10 +24,10 @@ export function useCollection<T>(
       setData(null);
       return;
     }
-    
+
     setLoading(true);
 
-    const unsubscribe = onSnapshot(memoizedQuery, 
+    const unsubscribe = onSnapshot(memoizedQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
         const result: T[] = snapshot.docs.map(doc => ({
           id: doc.id,
@@ -61,9 +61,9 @@ export function useDoc<T>(
 
   useEffect(() => {
     if (!memoizedRef) {
-        setLoading(false);
-        setData(null);
-        return;
+      setLoading(false);
+      setData(null);
+      return;
     };
 
     setLoading(true);

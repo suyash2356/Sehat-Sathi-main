@@ -305,12 +305,28 @@ export default function DoctorDashboardPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center"><h4 className="font-bold">Medications</h4><Button size="sm" onClick={handleAddMedication}><Plus className="h-4 w-4 mr-1" /> Add</Button></div>
                 {medications.map((med, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-2 p-2 border rounded">
-                    <div className="col-span-4"><Input placeholder="Name" value={med.name} onChange={(e) => handleMedicationChange(i, 'name', e.target.value)} /></div>
-                    <div className="col-span-2"><Input placeholder="Dosage" value={med.dosage} onChange={(e) => handleMedicationChange(i, 'dosage', e.target.value)} /></div>
-                    <div className="col-span-2"><Input placeholder="Freq" value={med.frequency} onChange={(e) => handleMedicationChange(i, 'frequency', e.target.value)} /></div>
-                    <div className="col-span-3"><Input placeholder="Instructions" value={med.instructions} onChange={(e) => handleMedicationChange(i, 'instructions', e.target.value)} /></div>
-                    <div className="col-span-1"><Button variant="ghost" size="icon" onClick={() => handleRemoveMedication(i)}><Trash className="h-4 w-4 text-red-500" /></Button></div>
+                  <div key={i} className="grid grid-cols-2 md:grid-cols-12 gap-2 p-2 border rounded items-end">
+                    <div className="col-span-2 md:col-span-4">
+                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Medicine Name</label>
+                      <Input placeholder="Name" value={med.name} onChange={(e) => handleMedicationChange(i, 'name', e.target.value)} />
+                    </div>
+                    <div className="col-span-1 md:col-span-2">
+                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Dosage</label>
+                      <Input placeholder="Dosage" value={med.dosage} onChange={(e) => handleMedicationChange(i, 'dosage', e.target.value)} />
+                    </div>
+                    <div className="col-span-1 md:col-span-2">
+                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Frequency</label>
+                      <Input placeholder="Freq" value={med.frequency} onChange={(e) => handleMedicationChange(i, 'frequency', e.target.value)} />
+                    </div>
+                    <div className="col-span-2 md:col-span-3">
+                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Instructions</label>
+                      <Input placeholder="Instructions" value={med.instructions} onChange={(e) => handleMedicationChange(i, 'instructions', e.target.value)} />
+                    </div>
+                    <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveMedication(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

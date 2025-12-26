@@ -690,8 +690,10 @@ export const translations = {
       deleteSuccessDescription: '{title} has been removed.',
       deleteFailedTitle: 'Delete Failed',
       deleteFailedDescription: 'Could not delete document.',
-      deleteConfirmationTitle: 'Are you sure?',
-      deleteConfirmationDescription: 'This will permanently delete the document "{title}".',
+      deletePrompt: {
+        title: 'Are you sure?',
+        description: 'This will permanently delete the document "{title}".',
+      },
       form: {
         docTitle: 'Document Title',
         docTitlePlaceholder: 'e.g. My Health Insurance Policy',
@@ -1398,8 +1400,10 @@ export const translations = {
       deleteSuccessDescription: '{title} हटा दिया गया है।',
       deleteFailedTitle: 'हटाने में विफल',
       deleteFailedDescription: 'दस्तावेज़ हटाया नहीं जा सका।',
-      deleteConfirmationTitle: 'क्या आप निश्चित हैं?',
-      deleteConfirmationDescription: 'यह दस्तावेज़ "{title}" को स्थायी रूप से हटा देगा।',
+      deletePrompt: {
+        title: 'क्या आप निश्चित हैं?',
+        description: 'यह दस्तावेज़ "{title}" को स्थायी रूप से हटा देगा।',
+      },
       form: {
         docTitle: 'दस्तावेज़ का शीर्षक',
         docTitlePlaceholder: 'उदा. मेरी स्वास्थ्य बीमा पॉलिसी',
@@ -2106,8 +2110,10 @@ export const translations = {
       deleteSuccessDescription: '{title} हटवला आहे.',
       deleteFailedTitle: 'हटवण्यात अयशस्वी',
       deleteFailedDescription: 'दस्तऐवज हटवू शकलो नाही.',
-      deleteConfirmationTitle: 'तुम्ही निश्चित आहात का?',
-      deleteConfirmationDescription: 'हे दस्तऐवज "{title}" कायमचे हटवेल.',
+      deletePrompt: {
+        title: 'तुम्ही निश्चित आहात का?',
+        description: 'हे दस्तऐवज "{title}" कायमचे हटवेल.',
+      },
       form: {
         docTitle: 'दस्तऐवजाचे शीर्षक',
         docTitlePlaceholder: 'उदा. माझी आरोग्य विमा पॉलिसी',
