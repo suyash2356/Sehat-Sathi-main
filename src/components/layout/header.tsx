@@ -268,12 +268,23 @@ export function Header() {
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon"><Menu /></Button>
               </SheetTrigger>
-              <SheetContent side="left">
+              <SheetContent side="left" className="flex flex-col">
                 <SheetHeader>
                   <SheetTitle><VisuallyHidden>Menu</VisuallyHidden></SheetTitle>
                 </SheetHeader>
-                <nav className="space-y-4 mt-6">
-                  <Link href="/" onClick={() => setIsOpen(false)}>Home</Link>
+                <nav className="flex-1 flex flex-col mt-6">
+                  <div className="space-y-4">
+                    <Link href="/health-guide" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Dashboard</Link>
+                    <Link href="/chatbot" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Chatbot</Link>
+                    <Link href="/map" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Map</Link>
+                    <Link href="/services" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Services</Link>
+                    <Link href="/about" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">About</Link>
+                  </div>
+
+                  <div className="mt-auto space-y-4 pb-4">
+                    <Link href="/insurance" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Insurance</Link>
+                    <Link href="/profile" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Profile</Link>
+                  </div>
                 </nav>
               </SheetContent>
             </Sheet>

@@ -1,5 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -9,10 +9,9 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 // Create a single supabase client for interacting with your database
-export const supabase = createClient(
-    supabaseUrl || 'https://placeholder-url.supabase.co',
-    supabaseKey || 'placeholder-key'
-);
+export const supabase: SupabaseClient | null = (supabaseUrl && supabaseKey)
+    ? createClient(supabaseUrl, supabaseKey)
+    : null;
 
 /**
  * Uploads a file to Supabase Storage.
@@ -22,8 +21,8 @@ export const supabase = createClient(
  * @returns The public URL of the uploaded file.
  */
 export const uploadToSupabase = async (file: File, path: string, bucket: string = 'uploads'): Promise<string> => {
-    if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Supabase credentials are missing. Please check .env.local");
+    if (!supabase) {
+        throw new Error("Supabase client is not initialized. Please check credentials.");
     }
 
     // upload file

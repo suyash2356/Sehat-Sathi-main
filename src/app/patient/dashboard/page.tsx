@@ -53,12 +53,6 @@ export default function PatientDashboardPage() {
   const auth = useAuth();
   const router = useRouter();
 
-  /* ---------------- AUTH GUARD (RENDER PHASE) ---------------- */
-  if (loading) return null;
-  if (!user) redirect('/patient/login');
-
-  const currentUser = user; // guaranteed non-null
-
   /* ---------------- LOCAL STATE ---------------- */
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [doctors, setDoctors] = useState<DoctorData[]>([]);
@@ -68,19 +62,21 @@ export default function PatientDashboardPage() {
 
   /* ---------------- DATA EFFECT ---------------- */
   useEffect(() => {
-    if (!db) return;
+    // Safety check inside effect
+    if (!db || loading || !user) return;
 
-    let unsubApp = () => {};
-    let unsubRx = () => {};
-    let unsubSession = () => {};
+    let unsubApp = () => { };
+    let unsubRx = () => { };
+    let unsubSession = () => { };
 
     const init = async () => {
       // Role enforcement
-      const patientRef = doc(db, 'patients', currentUser.uid);
+      const patientRef = doc(db, 'patients', user.uid);
       const patientSnap = await getDoc(patientRef);
 
       if (!patientSnap.exists()) {
-        redirect('/');
+        router.push('/');
+        return;
       }
 
       setPatientData(patientSnap.data() as PatientData);
@@ -101,7 +97,7 @@ export default function PatientDashboardPage() {
 
       // Appointments listener
       unsubApp = onSnapshot(
-        query(collection(db, 'appointments'), where('patientId', '==', currentUser.uid)),
+        query(collection(db, 'appointments'), where('patientId', '==', user.uid)),
         snap => {
           setAppointments(
             snap.docs.map(d => ({ id: d.id, ...d.data() })) as Appointment[]
@@ -111,7 +107,7 @@ export default function PatientDashboardPage() {
 
       // Prescriptions listener
       unsubRx = onSnapshot(
-        query(collection(db, 'prescriptions'), where('patientId', '==', currentUser.uid)),
+        query(collection(db, 'prescriptions'), where('patientId', '==', user.uid)),
         snap => {
           setPrescriptions(
             snap.docs.map(d => ({ id: d.id, ...d.data() })) as Prescription[]
@@ -121,7 +117,7 @@ export default function PatientDashboardPage() {
 
       // Call session listener
       unsubSession = onSnapshot(
-        query(collection(db, 'callSessions'), where('patientId', '==', currentUser.uid)),
+        query(collection(db, 'callSessions'), where('patientId', '==', user.uid)),
         snap => {
           const session = snap.docs[0];
           setActiveCallSession(session ? session.id : null);
@@ -136,7 +132,7 @@ export default function PatientDashboardPage() {
       unsubRx();
       unsubSession();
     };
-  }, [db, currentUser.uid]);
+  }, [db, user, loading, router]);
 
   /* ---------------- ACTIONS ---------------- */
   const handleLogout = async () => {
@@ -144,8 +140,14 @@ export default function PatientDashboardPage() {
     router.push('/patient/login');
   };
 
+  /* ---------------- AUTH GUARD (RENDER PHASE) ---------------- */
+  if (loading) return null;
+  if (!user) {
+    redirect('/patient/login');
+  }
+
   /* ---------------- UI ---------------- */
-  if (!patientData) return null;
+  if (!patientData) return <div className="p-10 text-center">Loading patient data...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

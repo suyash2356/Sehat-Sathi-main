@@ -62,6 +62,9 @@ export default function LandingPage() {
             <Button asChild size="lg" variant="secondary" className="rounded-full px-8 py-6 text-lg w-full sm:w-auto">
               <Link href="/chatbot">{t.startChatting}</Link>
             </Button>
+            <Button asChild size="lg" variant="outline" className="rounded-full px-8 py-6 text-lg w-full sm:w-auto bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-sm">
+              <Link href="/doctor/login">Doctor Login</Link>
+            </Button>
           </div>
         </div>
       </section>

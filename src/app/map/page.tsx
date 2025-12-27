@@ -275,11 +275,11 @@ export default function MapPage() {
       const docRef = await addDoc(collection(db, 'appointments'), bookingDetails);
 
       if (isCallNow) {
-        toast({ title: "Request Sent", description: "Your immediate call request has been sent." });
-        router.push('/patient/dashboard');
+        toast({ title: "Request Sent", description: "Your immediate call request has been sent. Please wait for the doctor to accept." });
+        // Removed redirect to dashboard to keep user on map page
       } else {
         toast({ title: "Request Sent", description: "Appointment scheduled. Waiting for doctor's approval." });
-        router.push('/patient/dashboard');
+        // Removed redirect to dashboard
         bookingForm.reset();
       }
     } catch (e) {
