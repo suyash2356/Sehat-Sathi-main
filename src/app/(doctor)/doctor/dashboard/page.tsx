@@ -155,7 +155,17 @@ export default function DoctorDashboardPage() {
       router.push(`/video-call?sessionId=${app.id}`);
     } catch (e: any) {
       console.error("Failed to start call", e);
-      toast({ title: "Error starting call", description: e.message, variant: "destructive" });
+      // Check for ad-blocker indicators
+      if (e.message?.includes('BLOCKED') || e.message?.includes('Failed to load') || e.message?.includes('network')) {
+        toast({
+          title: "Connection Blocked",
+          description: "A browser extension (like an ad-blocker) is blocking the call service. Please disable it for this site and try again.",
+          variant: "destructive",
+          duration: 6000
+        });
+      } else {
+        toast({ title: "Error starting call", description: e.message, variant: "destructive" });
+      }
     }
   };
 

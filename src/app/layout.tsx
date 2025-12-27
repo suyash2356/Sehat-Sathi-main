@@ -10,6 +10,8 @@ import { useChatLanguage } from '@/hooks/use-chat-language';
 import { FirebaseProvider } from '@/hooks/use-firebase';
 
 
+import { CallNotificationManager } from '@/components/notifications/CallNotification';
+
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isDoctorPage = pathname.startsWith('/doctor');
@@ -17,6 +19,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <CallNotificationManager />
       {!isDoctorPage && <Header />}
       <main className="flex-grow">{children}</main>
       {showFooter && <Footer />}
