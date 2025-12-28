@@ -6,12 +6,14 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { doc, getDoc } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useAuth } from "@/hooks/use-firebase";
+import { useAuth, useFirestore } from "@/hooks/use-firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
+import { supabase } from "@/lib/supabase";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address."),
@@ -20,6 +22,7 @@ const formSchema = z.object({
 
 export default function DoctorLoginPage() {
   const auth = useAuth();
+  const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -38,18 +41,69 @@ export default function DoctorLoginPage() {
     }
 
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      // 1. Login with SUPABASE
+      const { data: { session }, error: sbError } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password
+      });
+
+      if (sbError) throw new Error(`Supabase Login Error: ${sbError.message}`);
+      if (!session) throw new Error("No session returned.");
+
+      // 2. Bridge to FIREBASE
+      const syncRes = await fetch('/api/auth/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session, role: 'doctor' })
+      });
+      const syncData = await syncRes.json();
+
+      if (!syncRes.ok) throw new Error(syncData.error || 'Auth Sync Failed');
+
+      // 3. Login to Firebase with Custom Token
+      const { signInWithCustomToken } = await import("firebase/auth");
+      const userCredential = await signInWithCustomToken(auth, syncData.firebaseToken);
+      const user = userCredential.user;
+
+      if (!db) throw new Error("Database connection unavailable");
+
+      // 4. Check Doctor Profile Status
+      const docRef = doc(db, "doctors", user.uid);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        toast({ title: "Complete Registration", description: "Please complete your profile details." });
+        router.push('/doctor/onboarding');
+        return;
+      }
+
+      const doctorData = docSnap.data();
+
+      if (doctorData.verificationStatus === 'rejected') {
+        toast({
+          variant: "destructive",
+          title: "Application Rejected",
+          description: "Your application has been rejected by the admin. Please contact support."
+        });
+        await auth.signOut();
+        return;
+      }
+
+      if (!doctorData.isVerified) {
+        toast({ title: "Account Under Review", description: "Your account is pending verification." });
+        router.push('/doctor/pending');
+        return;
+      }
+
       toast({ title: "Login Successful", description: "Redirecting to your dashboard..." });
       router.push('/doctor/dashboard');
 
     } catch (error: any) {
-      let errorMessage = "An unknown error occurred. Please check your credentials.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        errorMessage = "Invalid email or password.";
-      }
-      toast({ title: "Login Failed", description: errorMessage, variant: "destructive" });
+      console.error(error);
+      toast({ title: "Login Failed", description: error.message, variant: "destructive" });
     }
   }
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900 p-4">

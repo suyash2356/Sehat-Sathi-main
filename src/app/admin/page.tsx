@@ -65,12 +65,20 @@ export default function AdminDashboard() {
     }, [user, authLoading, router, toast]);
 
     useEffect(() => {
-        // Use a state or ref to check if user has admin claim
         const verifyAndFetch = async () => {
             if (user) {
+                // Allow fetch if email matches whitelist OR claim is present
+                if (user.email === 'admin@sehatsathi.com') {
+                    fetchPendingDoctors();
+                    return;
+                }
+
                 const token = await user.getIdTokenResult();
                 if (token.claims.isAdmin) {
                     fetchPendingDoctors();
+                } else {
+                    // Not authorized to fetch, stop loading
+                    setLoading(false);
                 }
             }
         };
@@ -127,24 +135,29 @@ export default function AdminDashboard() {
         }
     };
 
-    const deleteDoctor = async (doctorId: string) => {
-        if (!confirm("Are you sure you want to delete this doctor account? This action cannot be undone.")) return;
+    const rejectDoctor = async (doctorId: string) => {
+        if (!confirm("Are you sure you want to REJECT this doctor application? They will be notified.")) return;
 
         try {
-            await deleteDoc(doc(db, 'doctors', doctorId));
+            const doctorRef = doc(db, 'doctors', doctorId);
+            await updateDoc(doctorRef, {
+                isVerified: false,
+                verificationStatus: 'rejected',
+                rejectedAt: new Date().toISOString()
+            });
 
             toast({
-                title: "Account Rejected",
-                description: "Doctor account has been deleted.",
+                title: "Application Rejected",
+                description: "Doctor status updated to rejected.",
             });
 
             setDoctors(prev => prev.filter(d => d.uid !== doctorId));
         } catch (error) {
-            console.error("Error deleting doctor:", error);
+            console.error("Error rejecting doctor:", error);
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: "Failed to delete doctor account.",
+                description: "Failed to reject doctor.",
             });
         }
     };
@@ -159,12 +172,11 @@ export default function AdminDashboard() {
         }
     };
 
-    if (authLoading || (!user && loading)) {
-        return <div className="flex justify-center items-center min-h-[60vh]"><p>Loading...</p></div>;
-    }
-
     // Double check render protection
-    if (!user || user.email !== 'admin@sehatsathi.com') return null;
+    if (!user) return null;
+
+    // Optional: If you want to restrict by email strictly here as well
+    // if (user.email !== 'admin@sehatsathi.com') return <div>Access Denied</div>;
 
     return (
         <div className="container mx-auto py-10">
@@ -254,7 +266,7 @@ export default function AdminDashboard() {
                                         </Button>
                                         <Button
                                             variant="destructive"
-                                            onClick={() => deleteDoctor(doctor.uid)}
+                                            onClick={() => rejectDoctor(doctor.uid)}
                                             className="flex-1 md:flex-none"
                                         >
                                             <Trash2 className="mr-2 h-4 w-4" /> Reject

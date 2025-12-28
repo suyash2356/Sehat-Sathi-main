@@ -1,46 +1,28 @@
+import { createClient } from '@supabase/supabase-js';
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-    console.warn('Missing Supabase environment variables. Storage uploads may fail.');
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase URL or Anon Key is missing. Supabase features will not work.');
 }
 
-// Create a single supabase client for interacting with your database
-export const supabase: SupabaseClient | null = (supabaseUrl && supabaseKey)
-    ? createClient(supabaseUrl, supabaseKey)
-    : null;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
- * Uploads a file to Supabase Storage.
- * @param file The file to upload.
- * @param path The path in the bucket (e.g., 'doctors/123/file.png').
- * @param bucket The bucket name (default: 'uploads').
- * @returns The public URL of the uploaded file.
+ * Upload helper for Supabase Storage
  */
-export const uploadToSupabase = async (file: File, path: string, bucket: string = 'uploads'): Promise<string> => {
-    if (!supabase) {
-        throw new Error("Supabase client is not initialized. Please check credentials.");
-    }
+export async function uploadToSupabase(file: File, path: string, bucket: string = 'uploads') {
+    if (!supabaseUrl) throw new Error("Supabase not configured");
 
-    // upload file
     const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(path, file, {
-            cacheControl: '3600',
-            upsert: true
-        });
+        .upload(path, file, { upsert: true });
 
     if (error) {
         throw error;
     }
 
-    // get public url
-    const { data: publicData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(data.path);
-
-    return publicData.publicUrl;
-};
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+    return publicUrl;
+}

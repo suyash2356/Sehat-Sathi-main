@@ -1,0 +1,25 @@
+const fs = require('fs');
+const path = require('path');
+
+const content = `# Replace the placeholder values with your actual Firebase project credentials.
+# You can find these in your Firebase project settings.
+
+NEXT_PUBLIC_FIREBASE_API_KEY="AIzaSyA0Vex5Jc8fkocH0Odh-GbGMZQgfr27t-E"
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="studio-3647433909-7d478.firebaseapp.com"
+NEXT_PUBLIC_FIREBASE_PROJECT_ID="studio-3647433909-7d478"
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="studio-3647433909-7d478.firebasestorage.app"
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="727846991895"
+NEXT_PUBLIC_FIREBASE_APP_ID="727846991895:web:af274c045f6f8f26a6c452"
+GEMINI_API_KEY="AIzaSyD1ZPuAL7g_8837kCFf-eGjQNobkxXAnlw"
+NEXT_PUBLIC_FIREBASE_GOOGLE_MAPS_API_KEY="AIzaSyCHeB5PCutbQyh1-LGq1IJOCa4zYHsPIdE"
+
+NEXT_PUBLIC_SUPABASE_URL="https://ivbczwzfroivzlhpylpp.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2YmN6d3pmcm9pdnpsaHB5bHBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU2MzEyNDIsImV4cCI6MjA4MTIwNzI0Mn0.Ste0z4c7rXe8-SN5C6Sqts1_iVaN96TFH1TKx7d6MOQ"
+NEXT_PUBLIC_CRYPTO_SECRET=sehat-sathi-secure-2025-v1
+
+FIREBASE_CLIENT_EMAIL="firebase-adminsdk-fbsvc@studio-3647433909-7d478.iam.gserviceaccount.com"
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDhCXN8zpEL5mCW\\nRRjZmMX/nZpZOeZ+XRUByKgb5wqz/R2l1usZXv7N8ew6wR6RLM0ZbrikYmjzWDAj\\nRZZikr5+lSlsr9WHcgUpN0C8IWzKDhoUaJc9ql41iKzxGOsd+x2m0E55LXYgfMQF\\nD+whLab562dgGPXJ3XRREV01Je5b2TNmPyJC4XPbcnu9q98lixI0NazSqmqkFRuS\\nWPy9Z347CLVrWaAOmYI1Uv9KpdXY07AoT2lyu9WUovQAgw1os6t++1U+Ouw8uqLq\\nst+ueu6I7TZ2tgH3UnZ83D6pbKUr6UdEjwQylF8B+TObKaqmYFPsNhA1bqh0CcMa\\nLaP4hWDpAgMBAAECggEAExESrqau3e//S4QfuqIJ1qJTF0/DUn4O/1dxvOl6u+zM\\nhAZdZYkptCfVANZngVvnJco+jTkEVOfqLjbhasktqDp5p8qPIDp+KvOSQc5gMg93\\nULba55/lewoxQv0+QIxMAxv/ph8+tLp1fktO0bHVRbQXDmqW+qtPhWXf/JaR50ir\\ndOM5GLKpFJU7Q4oR5uptzsYz0+tbBHsXld1GzJzuJ2qcsG0vYFMvObEl9S7sodaM\\npqwW0pacUY25dzbY/8UrH6j6dt0UI/QdUk6DHZweGn54VXqT1iSB/xzzQxHgClLW\\nhYjhp09nufKw8pHZQ93QKDKp77aMOWEqp4yePxXqvQKBgQD2mVHD3mczsXMPSsRP\\nlmSqfBh92F7jfW8KdatkEBHKfmuTGQgQ8IMrxMEdm+edUg4Q4liLS0wSVFVxfKHY\\nZVPc6h7eJ41doFmcWM2XmW15ChYTun/mvfDhCStuOLA8YN0/lVEHf35pOCCuS+4h\\noZU0KMP+Jjztl4/c4og7vC4kBQKBgQDpnbKZa3wjuuup9hCDxNhXjPX6v6So9rgi\\n4whGJVHLR5F/6NEostklDqnwyge01+fGDxoUVCjq8zdSXPQ/2oHqsHjsJvBcTJXk\\nuOI1L5APSnayD6aeTwW3cpBIV7IQy76AwfP4nE7chOP+ZjaBjTWfH46ClICsVJ1l\\nscu0ksbilQKBgQDQxK43T4M5fUI2sQqPgnhI6PRnHhX/LAMk7Mej2ALn1q1GBEwS\\n4zt5g4ImigXE52HnI2jozF9jqSgJAwWVyPr9rOtjEkMY/5a9yWSMsqS+cy6LlzmO\\n5EEYkwXEs5NoGm1U1hmaanJfq9fnF3tL15sUZGrBMCgm0UhHLTU+tSqu7QKBgQCI\\nDiet4kNyK7KEUaJcm4/DrXy0hFhJbybeaoqvD50LXqsGa3kk0sRUKK4gZgkG8Zcy\\naikuHbWW3/8gILK/XWq8W/qQzjy+BHxnsKVNhF3KCfwGx8ap/CvAIyCUgT5bOc3A\\n/zQvXhkvpNWDm9Oyr6LDAYXl1sb5lm30hA+3IqRh4QKBgA2Gaal455myrTkEmc3l\\nPGhO7bOhXJeQc4xMkGoU9zrd0eF+OxznWCJmuKaJ3MeaQrmZ8ofyeR0vDixcbSPh\\n+ZbHqDrcPq0d/ibKhbrFVqmpacEtCTi24rfU4d4ynzHoLgl5SIX5ZZiwGDxd2slK\\nlgKQAPggosfDypkJ3ORLaplA\\n-----END PRIVATE KEY-----\\n"
+`;
+
+fs.writeFileSync(path.join(process.cwd(), '.env.local'), content);
+console.log('.env.local has been updated successfully.');

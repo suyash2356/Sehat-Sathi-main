@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,18 +24,33 @@ export default function AdminLoginPage() {
         setLoading(true);
 
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-            toast({
-                title: "Login Successful",
-                description: "Redirecting to admin dashboard...",
-            });
-            router.push('/admin');
+            try {
+                // Standard Firebase Login
+                await signInWithEmailAndPassword(auth, email, password);
+
+                toast({
+                    title: "Login Successful",
+                    description: "Redirecting to admin dashboard...",
+                });
+                router.push('/admin');
+            } catch (error: any) {
+                console.error("Login error:", error);
+
+                let errorMessage = "Invalid email or password.";
+                if (error.code === 'auth/invalid-credential') errorMessage = "Invalid credentials.";
+
+                toast({
+                    variant: "destructive",
+                    title: "Login Failed",
+                    description: errorMessage,
+                });
+            }
         } catch (error: any) {
             console.error("Login error:", error);
             toast({
                 variant: "destructive",
                 title: "Login Failed",
-                description: "Invalid email or password. Only admins allowed.",
+                description: error.message,
             });
         } finally {
             setLoading(false);

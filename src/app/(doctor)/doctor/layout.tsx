@@ -1,13 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LogOut, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-firebase';
+import { useAuth, useFirestore } from '@/hooks/use-firebase';
+import { useUser } from '@/hooks/use-user';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { doc, getDoc } from 'firebase/firestore';
 
 const navLinks = [
   { href: '/doctor/dashboard', label: 'Dashboard' },
@@ -21,6 +23,51 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
+  const { user, loading } = useUser();
+  const db = useFirestore(); // Ensure we have db access
+  const [verifying, setVerifying] = useState(true);
+
+  useEffect(() => {
+    const checkVerification = async () => {
+      if (loading) return;
+
+      // Allow public pages inside layout
+      const publicPaths = ['/doctor/onboarding', '/doctor/pending', '/doctor/login', '/doctor/signup'];
+      if (publicPaths.includes(pathname)) {
+        setVerifying(false);
+        return;
+      }
+
+      if (!user) {
+        // Protected route, but no user. Let middleware/auth hook handle redirect or do it here.
+        router.push('/doctor/login');
+        return;
+      }
+
+      if (!db) return;
+
+      try {
+        const docRef = doc(db, 'doctors', user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+          router.push('/doctor/onboarding');
+        } else {
+          const data = docSnap.data();
+          if (!data.isVerified) {
+            router.push('/doctor/pending');
+          }
+        }
+      } catch (error) {
+        console.error("Verification check failed", error);
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    checkVerification();
+  }, [user, loading, db, pathname, router]);
+
   const handleLogout = async () => {
     if (auth) {
       try {
@@ -31,6 +78,10 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
       }
     }
   };
+
+  if (loading || verifying) {
+    return <div className="min-h-screen flex items-center justify-center">Loading portal...</div>;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
