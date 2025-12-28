@@ -59,7 +59,9 @@ interface Doctor {
   email: string;
   hospitalLocation?: { lat: number; lng: number };
   isVerified: boolean;
-  availability?: { dates: string[]; timeSlots: string[] };
+  availability?: {
+    [key: string]: { start: string; end: string; isOpen: boolean };
+  } | { dates: string[]; timeSlots: string[] }; // Union type for new | old
   specialization?: string;
   hospitalName?: string;
   hospitalAddress?: string;
@@ -189,16 +191,57 @@ export default function MapPage() {
 
   // Filter Logic
   const filteredDoctors = useMemo(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const now = new Date();
+    // Get full day name e.g. "Monday"
+    const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const currentHour = now.getHours().toString().padStart(2, '0');
+    const currentMinute = now.getMinutes().toString().padStart(2, '0');
+    const currentTime = `${currentHour}:${currentMinute}`;
 
     return doctors.filter(doc => {
-      // Verification check (already done in query, but good to be safe)
-      if (!doc.isVerified && doc.type !== 'Government') return false; // Government hospitals are implicitly verified
+      // Verification check
+      if (!doc.isVerified && doc.type !== 'Government') return false;
 
       // Location filtering
       if (selectedState && selectedState !== 'all' && doc.state !== selectedState) return false;
       if (selectedDistrict && selectedDistrict !== 'all' && doc.district !== selectedDistrict) return false;
       if (selectedVillage && selectedVillage !== 'all' && doc.village !== selectedVillage) return false;
+
+      // Availability Check
+      if (doc.type === 'Government') {
+        return true; // Government hospitals open 24/7 or logic not applied
+      }
+
+      // Check for new availability structure
+      const availability = doc.availability;
+      if (!availability) {
+        // Decide policy: If no schedule set, is currently invisible?
+        // User request: "Visible... ONLY for that period".
+        // Use strict mode: if no schedule, hidden.
+        return false;
+      }
+
+      // Handle legacy array structure (backwards compatibility if needed, but strict mode preferred)
+      // If it has 'dates' array, it's the old structure (which didn't have specific times per day usually or was just mocked)
+      // We'll treat old structure as "hidden" to force update, or "visible" if simple. 
+      // Let's assume strict logic as requested.
+      if (Array.isArray(availability.dates)) {
+        return false; // Old data format, force doctor to save schedule
+      }
+
+      // Use type assertion to handle the Union type for indexing
+      const availabilityAny = availability as any;
+      const todaySchedule = availabilityAny[currentDay];
+
+      if (!todaySchedule || !todaySchedule.isOpen) {
+        return false; // Closed today
+      }
+
+      // Time Range Check
+      // Format "HH:MM" comparable lexicographically
+      if (currentTime < todaySchedule.start || currentTime > todaySchedule.end) {
+        return false; // Closed right now
+      }
 
       return true;
     });
@@ -376,7 +419,7 @@ export default function MapPage() {
                     <p className="text-sm font-semibold">{selectedDoctor.specialization}</p>
                     <p className="text-sm">{selectedDoctor.hospitalName}</p>
                     <p className="text-sm text-gray-600">{selectedDoctor.address}</p>
-                    {selectedDoctor.availability?.timeSlots?.length ? (
+                    {selectedDoctor.availability && ('timeSlots' in selectedDoctor.availability) && (selectedDoctor.availability as any).timeSlots?.length ? (
                       <p className="text-xs text-green-600 mt-1">Has availability today</p>
                     ) : null}
                   </div>

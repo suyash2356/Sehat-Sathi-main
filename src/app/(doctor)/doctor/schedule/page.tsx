@@ -92,99 +92,115 @@ export default function DoctorSchedulePage() {
 
   const handleSaveSchedule = async () => {
     if (!user || !db) {
-        toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
-        return;
+      toast({ title: "Error", description: "You must be logged in to save.", variant: "destructive" });
+      return;
     }
 
     setIsSaving(true);
     try {
-        const batch = writeBatch(db);
-        schedule.forEach(daySchedule => {
-            const docRef = doc(db, 'doctors', user.uid, 'schedule', daySchedule.day);
-            batch.set(docRef, daySchedule);
-        });
-        await batch.commit();
-        toast({ title: "Schedule Saved", description: "Your weekly availability has been updated successfully." });
+      const batch = writeBatch(db);
+
+      // 1. Save to sub-collection (existing logic)
+      schedule.forEach(daySchedule => {
+        const docRef = doc(db, 'doctors', user.uid, 'schedule', daySchedule.day);
+        batch.set(docRef, daySchedule);
+      });
+
+      // 2. Save aggregated availability to main document for filtering
+      const aggregatedAvailability = schedule.reduce((acc, day) => {
+        acc[day.day] = {
+          start: day.startTime,
+          end: day.endTime,
+          isOpen: day.isAvailable
+        };
+        return acc;
+      }, {} as Record<string, { start: string, end: string, isOpen: boolean }>);
+
+      const mainDocRef = doc(db, 'doctors', user.uid);
+      batch.update(mainDocRef, { availability: aggregatedAvailability });
+
+      await batch.commit();
+      toast({ title: "Schedule Saved", description: "Your weekly availability has been updated successfully." });
     } catch (error: any) {
-        console.error("Error saving schedule: ", error);
-        toast({ title: "Save Failed", description: `An error occurred: ${error.message}`, variant: "destructive" });
+      console.error("Error saving schedule: ", error);
+      toast({ title: "Save Failed", description: `An error occurred: ${error.message}`, variant: "destructive" });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
   if (isLoading || isUserLoading) {
-      return (
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
-              <Card className="max-w-4xl mx-auto">
-                  <CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader>
-                  <CardContent className="space-y-4">
-                      {[...Array(7)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
-                  </CardContent>
-                   <CardFooter><Skeleton className="h-10 w-32 ml-auto" /></CardFooter>
-              </Card>
-          </div>
-      )
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
+        <Card className="max-w-4xl mx-auto">
+          <CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader>
+          <CardContent className="space-y-4">
+            {[...Array(7)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+          </CardContent>
+          <CardFooter><Skeleton className="h-10 w-32 ml-auto" /></CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 md:p-8">
       <Card className="max-w-4xl mx-auto shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold flex items-center"><Clock className="mr-3 h-6 w-6 text-primary"/> Manage Your Weekly Schedule</CardTitle>
+          <CardTitle className="text-2xl font-bold flex items-center"><Clock className="mr-3 h-6 w-6 text-primary" /> Manage Your Weekly Schedule</CardTitle>
           <CardDescription>Set your standard availability for each day of the week. Patients will be able to book appointments during these times.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           <Alert>
-              <AlertTitle>How it works</AlertTitle>
-              <AlertDescription>Toggle the switch to mark a day as 'Available'. Then, select the start and end times for your consultations. This schedule will repeat weekly.</AlertDescription>
+            <AlertTitle>How it works</AlertTitle>
+            <AlertDescription>Toggle the switch to mark a day as 'Available'. Then, select the start and end times for your consultations. This schedule will repeat weekly.</AlertDescription>
           </Alert>
-          
+
           <div className="space-y-4 rounded-lg border p-4">
-              {schedule.map(daySchedule => (
-                <div key={daySchedule.day} className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] items-center gap-4 p-3 rounded-md transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <div className="flex items-center space-x-4">
-                        <Switch 
-                            id={`available-${daySchedule.day}`}
-                            checked={daySchedule.isAvailable}
-                            onCheckedChange={checked => handleUpdate(daySchedule.day, 'isAvailable', checked)}
-                            aria-label={`Availability for ${daySchedule.day}`}
-                        />
-                        <Label htmlFor={`available-${daySchedule.day}`} className="text-lg font-medium min-w-[100px]">{daySchedule.day}</Label>
+            {schedule.map(daySchedule => (
+              <div key={daySchedule.day} className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] items-center gap-4 p-3 rounded-md transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <div className="flex items-center space-x-4">
+                  <Switch
+                    id={`available-${daySchedule.day}`}
+                    checked={daySchedule.isAvailable}
+                    onCheckedChange={checked => handleUpdate(daySchedule.day, 'isAvailable', checked)}
+                    aria-label={`Availability for ${daySchedule.day}`}
+                  />
+                  <Label htmlFor={`available-${daySchedule.day}`} className="text-lg font-medium min-w-[100px]">{daySchedule.day}</Label>
+                </div>
+
+                {daySchedule.isAvailable ? (
+                  <div className="grid grid-cols-2 gap-4 col-span-1 md:col-span-2">
+                    {/* Start Time */}
+                    <div>
+                      <Label htmlFor={`start-${daySchedule.day}`} className="text-xs text-gray-500">Start Time</Label>
+                      <Select value={daySchedule.startTime} onValueChange={value => handleUpdate(daySchedule.day, 'startTime', value)}>
+                        <SelectTrigger id={`start-${daySchedule.day}`} className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>{timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
                     </div>
 
-                    {daySchedule.isAvailable ? (
-                        <div className="grid grid-cols-2 gap-4 col-span-1 md:col-span-2">
-                            {/* Start Time */}
-                            <div>
-                                <Label htmlFor={`start-${daySchedule.day}`} className="text-xs text-gray-500">Start Time</Label>
-                                <Select value={daySchedule.startTime} onValueChange={value => handleUpdate(daySchedule.day, 'startTime', value)}>
-                                  <SelectTrigger id={`start-${daySchedule.day}`} className="w-full"><SelectValue /></SelectTrigger>
-                                    <SelectContent>{timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* End Time */}
-                            <div>
-                                <Label htmlFor={`end-${daySchedule.day}`} className="text-xs text-gray-500">End Time</Label>
-                                <Select value={daySchedule.endTime} onValueChange={value => handleUpdate(daySchedule.day, 'endTime', value)}>
-                                  <SelectTrigger id={`end-${daySchedule.day}`} className="w-full"><SelectValue /></SelectTrigger>
-                                  <SelectContent>{timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="col-span-1 md:col-span-2 text-center md:text-left">
-                            <p className="text-sm text-gray-500 italic">Unavailable</p>
-                        </div>
-                    )}
-                </div>
-              ))}
+                    {/* End Time */}
+                    <div>
+                      <Label htmlFor={`end-${daySchedule.day}`} className="text-xs text-gray-500">End Time</Label>
+                      <Select value={daySchedule.endTime} onValueChange={value => handleUpdate(daySchedule.day, 'endTime', value)}>
+                        <SelectTrigger id={`end-${daySchedule.day}`} className="w-full"><SelectValue /></SelectTrigger>
+                        <SelectContent>{timeSlots.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="col-span-1 md:col-span-2 text-center md:text-left">
+                    <p className="text-sm text-gray-500 italic">Unavailable</p>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </CardContent>
         <CardFooter className="bg-gray-50 dark:bg-gray-900/50 border-t px-6 py-4">
           <Button onClick={handleSaveSchedule} disabled={isSaving} size="lg" className="ml-auto">
-            {isSaving ? 'Saving...' : <><Save className="mr-2 h-4 w-4"/> Save Schedule</>}
+            {isSaving ? 'Saving...' : <><Save className="mr-2 h-4 w-4" /> Save Schedule</>}
           </Button>
         </CardFooter>
       </Card>
