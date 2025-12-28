@@ -1,18 +1,21 @@
-// Doctor Dashboard - Request Management, Call Initiation & Prescriptions
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useUser } from '@/hooks/use-user';
 import { useFirestore } from '@/hooks/use-firebase';
 import { collection, query, where, doc, updateDoc, setDoc, onSnapshot, getDoc, addDoc } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, X, Video, Phone, Calendar, Clock, User, FileText, Plus, Trash, Loader2 } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check, X, Video, Phone, Calendar, Clock, User, FileText, Plus, Trash, Loader2, Search, ListFilter, Users, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { decryptData } from '@/lib/encryption';
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { AppointmentCard } from "@/components/dashboard/AppointmentCard";
 
 interface Appointment {
   id: string;
@@ -46,6 +49,10 @@ export default function DoctorDashboardPage() {
   const [upcoming, setUpcoming] = useState<Appointment[]>([]);
   const [completed, setCompleted] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [historyFilter, setHistoryFilter] = useState('all');
 
   // Prescription Modal State
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
@@ -107,15 +114,34 @@ export default function DoctorDashboardPage() {
         };
       });
 
-      setRequests(processed.filter(a => a.status === 'pending'));
-      setUpcoming(processed.filter(a => ['accepted', 'in_call'].includes(a.status)));
-      setCompleted(processed.filter(a => a.status === 'completed'));
+      // Sort by date logic (helper)
+      const getDate = (a: Appointment) => {
+        if (a.timing === 'call_now') return new Date();
+        return a.scheduledTime?.toDate ? a.scheduledTime.toDate() : new Date(a.scheduledTime);
+      };
+
+      setRequests(processed.filter(a => a.status === 'pending').sort((a, b) => getDate(a).getTime() - getDate(b).getTime()));
+      setUpcoming(processed.filter(a => ['accepted', 'in_call'].includes(a.status)).sort((a, b) => getDate(a).getTime() - getDate(b).getTime()));
+
+      // History sorted descending (newest first)
+      const hist = processed.filter(a => ['completed', 'rejected'].includes(a.status));
+      setCompleted(hist.sort((a, b) => getDate(b).getTime() - getDate(a).getTime()));
+
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, [user, db]);
 
+
+  // Computed History List
+  const filteredHistory = useMemo(() => {
+    return completed.filter(app => {
+      const matchesSearch = app.patientDetails.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = historyFilter === 'all' || app.status === historyFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [completed, searchTerm, historyFilter]);
 
 
   // Actions
@@ -217,123 +243,196 @@ export default function DoctorDashboardPage() {
   };
 
 
-  if (loading) return <div className="p-8 flex justify-center"><div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 space-y-6">
 
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Doctor Dashboard</h1>
-        </header>
-
-        {/* REQUESTS */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <User className="text-yellow-600 h-5 w-5" />
-            <h2 className="text-xl font-bold">Requests {requests.length > 0 && <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">{requests.length}</span>}</h2>
-          </div>
-          {requests.length === 0 ? <div className="p-4 bg-white border rounded text-center text-gray-500">No pending requests</div> : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {requests.map(req => (
-                <Card key={req.id} className="border-l-4 border-l-yellow-400">
-                  <CardHeader>
-                    <CardTitle>{req.patientDetails.name}</CardTitle>
-                    <CardDescription>{(req.mode || 'video').toUpperCase()}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-sm text-gray-600">
-                    <p><strong>Age:</strong> {req.patientDetails?.age ?? '—'} &nbsp; <strong>Gender:</strong> {req.patientDetails?.gender ?? '—'}</p>
-                    <p><strong>Timing:</strong> {req.timing === 'call_now' ? 'Immediate' : (req.scheduledTime?.toDate ? req.scheduledTime.toDate().toLocaleString() : String(req.scheduledTime))}</p>
-                  </CardContent>
-                  <CardContent>
-                    <p className="text-sm mb-4"><strong>Issue:</strong> {req.patientDetails.disease}</p>
-                    <div className="flex gap-2"><Button size="sm" className="w-full bg-green-600" onClick={() => handleStatusUpdate(req.id, 'accepted')}>Accept</Button><Button size="sm" variant="destructive" className="w-full" onClick={() => handleStatusUpdate(req.id, 'rejected')}>Reject</Button></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* ACTIVE */}
-        <section>
-          <div className="flex items-center gap-2 mb-4"><Calendar className="text-blue-600 h-5 w-5" /> <h2 className="text-xl font-bold">Upcoming</h2></div>
-          {upcoming.length === 0 ? <div className="p-4 bg-white border rounded text-center text-gray-500">No active appointments</div> : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {upcoming.map(app => (
-                <Card key={app.id} className={`border-l-4 ${app.status === 'in_call' ? 'border-l-red-500' : 'border-l-blue-500'}`}>
-                  <CardHeader><CardTitle>{app.patientDetails.name}</CardTitle><CardDescription>{(app.mode || 'video') === 'visit' ? 'Clinic Visit' : 'Teleconsultation'}</CardDescription></CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-500 mb-4"><Clock className="inline h-3 w-3 mr-1" />{app.timing === 'call_now' ? 'Immediate' : app.scheduledTime?.toDate().toLocaleString()}</p>
-                    {app.mode !== 'visit' ? (
-                      <Button onClick={() => handleStartCall(app)} className={`w-full ${app.status === 'in_call' ? 'bg-red-600' : 'bg-blue-600'}`}>
-                        {app.status === 'in_call' ? 'RESUME CALL' : 'START CALL'}
-                      </Button>
-                    ) : (
-                      <Button className="w-full" variant="outline" onClick={() => handleStatusUpdate(app.id, 'completed')}>Mark Complete</Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* COMPLETED / HISTORY */}
-        <section>
-          <div className="flex items-center gap-2 mb-4"><Check className="text-green-600 h-5 w-5" /> <h2 className="text-xl font-bold">Completed</h2></div>
-          {completed.length === 0 ? <div className="p-4 bg-white border rounded text-center text-gray-500">No completed appointments</div> : (
-            <div className="grid gap-4 md:grid-cols-3">
-              {completed.map(app => (
-                <Card key={app.id} className="border-l-4 border-l-green-500">
-                  <CardHeader><CardTitle>{app.patientDetails.name}</CardTitle><CardDescription>Completed</CardDescription></CardHeader>
-                  <CardContent>
-                    <Button variant="outline" className="w-full" onClick={() => handlePrescribeClick(app)}>
-                      <FileText className="mr-2 h-4 w-4" /> Write Prescription
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </section>
-
+      {/* HEADER STATS */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Pending Requests"
+          value={requests.length}
+          icon={Users}
+          color="text-yellow-600"
+          description="Requires action"
+        />
+        <StatCard
+          title="Upcoming Appointments"
+          value={upcoming.length}
+          icon={Calendar}
+          color="text-blue-600"
+          description="Scheduled & In-Call"
+        />
+        <StatCard
+          title="Total History"
+          value={completed.length}
+          icon={ClipboardList}
+          color="text-green-600"
+          description="Completed & Rejected"
+        />
+        <StatCard
+          title="Today's Date"
+          value={new Date().getDate()}
+          icon={Clock}
+          color="text-purple-600"
+          description={new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+        />
       </div>
 
-      {/* Prescription Modal */}
+      {/* TABS INTERFACE */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 lg:w-[400px]">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
+
+        {/* OVERVIEW TAB */}
+        <TabsContent value="overview" className="space-y-4 mt-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-4">
+              <CardHeader>
+                <CardTitle>Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                {/* Simple Placeholder Chart or Summary could go here */}
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground border-2 border-dashed rounded m-4">
+                  Activity Summary (Coming Soon)
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="col-span-3">
+              <CardHeader>
+                <CardTitle>Next Up</CardTitle>
+                <CardDescription>Your upcoming appointments.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {upcoming.length === 0 ? <p className="text-sm text-gray-500">No upcoming appointments.</p> : (
+                  <div className="space-y-4">
+                    {upcoming.slice(0, 3).map(app => (
+                      <AppointmentCard
+                        key={app.id}
+                        appointment={app}
+                        onStartCall={handleStartCall}
+                        onComplete={(id) => handleStatusUpdate(id, 'completed')}
+                        showActions={true}
+                      />
+                    ))}
+                    {upcoming.length > 3 && <Button variant="link" onClick={() => (document.querySelector('[value="schedule"]') as HTMLElement)?.click()}>View All</Button>}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* REQUESTS TAB */}
+        <TabsContent value="requests" className="mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" /> Pending Requests</h2>
+          </div>
+          {requests.length === 0 ? <div className="p-8 text-center bg-white rounded-lg border text-muted-foreground">No pending requests found.</div> : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {requests.map(req => (
+                <AppointmentCard
+                  key={req.id}
+                  appointment={req}
+                  onAccept={(id) => handleStatusUpdate(id, 'accepted')}
+                  onReject={(id) => handleStatusUpdate(id, 'rejected')}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* SCHEDULE TAB */}
+        <TabsContent value="schedule" className="mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold flex items-center gap-2"><Calendar className="h-5 w-5" /> Your Schedule</h2>
+          </div>
+          {upcoming.length === 0 ? <div className="p-8 text-center bg-white rounded-lg border text-muted-foreground">No upcoming appointments.</div> : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {upcoming.map(app => (
+                <AppointmentCard
+                  key={app.id}
+                  appointment={app}
+                  onStartCall={handleStartCall}
+                  onComplete={(id) => handleStatusUpdate(id, 'completed')}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* HISTORY TAB */}
+        <TabsContent value="history" className="mt-4">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search patient name..." className="pl-8" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+            <Select value={historyFilter} onValueChange={setHistoryFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filteredHistory.length === 0 ? <div className="p-8 text-center bg-white rounded-lg border text-muted-foreground">No history found matching filters.</div> : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {filteredHistory.map(app => (
+                <AppointmentCard
+                  key={app.id}
+                  appointment={app}
+                  onPrescribe={handlePrescribeClick}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Prescription Modal - Unchanged Logic */}
       {isPrescriptionModalOpen && selectedApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <CardHeader className="flex flex-row justify-between items-center">
+          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <CardHeader className="flex flex-row justify-between items-center border-b">
               <div>
                 <CardTitle>Prescription for {selectedApp.patientDetails.name}</CardTitle>
                 <CardDescription>Add medications below</CardDescription>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setIsPrescriptionModalOpen(false)}><X /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setIsPrescriptionModalOpen(false)}><X className="h-4 w-4" /></Button>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 pt-6">
               <div className="space-y-4">
-                <div className="flex justify-between items-center"><h4 className="font-bold">Medications</h4><Button size="sm" onClick={handleAddMedication}><Plus className="h-4 w-4 mr-1" /> Add</Button></div>
+                <div className="flex justify-between items-center"><h4 className="font-bold text-lg">Medications</h4><Button size="sm" onClick={handleAddMedication}><Plus className="h-4 w-4 mr-1" /> Add Medicine</Button></div>
                 {medications.map((med, i) => (
-                  <div key={i} className="grid grid-cols-2 md:grid-cols-12 gap-2 p-2 border rounded items-end">
+                  <div key={i} className="grid grid-cols-2 md:grid-cols-12 gap-3 p-3 border rounded-lg items-end bg-gray-50/50">
                     <div className="col-span-2 md:col-span-4">
-                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Medicine Name</label>
-                      <Input placeholder="Name" value={med.name} onChange={(e) => handleMedicationChange(i, 'name', e.target.value)} />
+                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Name</label>
+                      <Input placeholder="Medicine Name" value={med.name} onChange={(e) => handleMedicationChange(i, 'name', e.target.value)} />
                     </div>
                     <div className="col-span-1 md:col-span-2">
-                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Dosage</label>
+                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Dosage</label>
                       <Input placeholder="Dosage" value={med.dosage} onChange={(e) => handleMedicationChange(i, 'dosage', e.target.value)} />
                     </div>
                     <div className="col-span-1 md:col-span-2">
-                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Frequency</label>
+                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Freq</label>
                       <Input placeholder="Freq" value={med.frequency} onChange={(e) => handleMedicationChange(i, 'frequency', e.target.value)} />
                     </div>
                     <div className="col-span-2 md:col-span-3">
-                      <label className="text-xs text-muted-foreground md:hidden mb-1 block">Instructions</label>
+                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Instructions</label>
                       <Input placeholder="Instructions" value={med.instructions} onChange={(e) => handleMedicationChange(i, 'instructions', e.target.value)} />
                     </div>
                     <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveMedication(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                      <Button variant="ghost" size="icon" onClick={() => handleRemoveMedication(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8">
                         <Trash className="h-4 w-4" />
                       </Button>
                     </div>
@@ -342,11 +441,11 @@ export default function DoctorDashboardPage() {
               </div>
               <div className="space-y-2">
                 <label className="font-bold">General Notes</label>
-                <Textarea placeholder="Rest, diet, etc." value={generalNotes} onChange={(e) => setGeneralNotes(e.target.value)} />
+                <Textarea placeholder="Rest, diet recommendations, etc." value={generalNotes} onChange={(e) => setGeneralNotes(e.target.value)} className="min-h-[100px]" />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="ghost" onClick={() => setIsPrescriptionModalOpen(false)}>Cancel</Button>
-                <Button onClick={handleSubmitPrescription} disabled={isPrescribing}>{isPrescribing ? <Loader2 className="animate-spin" /> : 'Send Prescription'}</Button>
+                <Button onClick={handleSubmitPrescription} disabled={isPrescribing}>{isPrescribing ? <Loader2 className="animate-spin mr-2" /> : <Check className="mr-2 h-4 w-4" />} Send Prescription</Button>
               </div>
             </CardContent>
           </Card>

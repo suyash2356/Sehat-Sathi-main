@@ -68,6 +68,7 @@ interface Doctor {
   village?: string;
   contact?: string; // Add contact property
   verificationLevel?: number;
+  type?: string; // 'Doctor' or 'Government'
 }
 
 // Helper to convert Doctor to the shape used by the UI (combining doctor & hospital info)
@@ -117,6 +118,14 @@ export default function MapPage() {
     return () => unsubscribe();
   }, []);
 
+  // Watch for selected doctor changes to enforce restrictions
+  useEffect(() => {
+    if (selectedDoctor?.type === 'Government') {
+      bookingForm.setValue('callType', 'in-person');
+      bookingForm.setValue('callNow', false);
+    }
+  }, [selectedDoctor, bookingForm]);
+
   // Fetch doctors from Firestore
   useEffect(() => {
     async function fetchDoctors() {
@@ -151,20 +160,18 @@ export default function MapPage() {
             district: data.district,
             village: data.village,
             contact: data.contact || "N/A",
+            type: 'Doctor' // Explicitly mark as Doctor
           });
         });
 
         // Add government hospitals to the list
-        const allMedicalFacilities = [...fetchedDoctors, ...governmentHospitals as unknown as MapItem[]];
-        setDoctors(allMedicalFacilities); // Error: fetchedDoctors + gov hospitals
-        // Type mismatch fix: MapItem vs mock data. Mock data needs to conform to MapItem.
-        // Let's just cast for now as the shapes are compatible manually.
         const govHospitalsMapped = governmentHospitals.map(h => ({
           ...h,
           contact: "0000000000", // Default contact for hospitals
           email: "info@gov.in",
           address: h.hospitalAddress || "Government Hospital",
-          availability: { dates: [], timeSlots: [] }
+          availability: { dates: [], timeSlots: [] },
+          type: 'Government' // Explicitly mark as Government
         })) as MapItem[];
 
         setDoctors([...fetchedDoctors, ...govHospitalsMapped]);
@@ -186,7 +193,7 @@ export default function MapPage() {
 
     return doctors.filter(doc => {
       // Verification check (already done in query, but good to be safe)
-      if (!doc.isVerified) return false;
+      if (!doc.isVerified && doc.type !== 'Government') return false; // Government hospitals are implicitly verified
 
       // Location filtering
       if (selectedState && selectedState !== 'all' && doc.state !== selectedState) return false;
@@ -455,8 +462,48 @@ export default function MapPage() {
                     <FormField control={bookingForm.control} name="doctorId" render={({ field }) => (<FormItem className="hidden"><FormControl><Input {...field} value={selectedDoctor?.id || ''} /></FormControl></FormItem>)} />
                   </div>
                   <div className="grid sm:grid-cols-3 gap-4 items-end">
-                    <FormField control={bookingForm.control} name="callType" render={({ field }) => (<FormItem><FormLabel>Call Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select call type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="video">Video Call</SelectItem><SelectItem value="voice">Voice Call</SelectItem><SelectItem value="in-person">In-Person</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-                    <FormField control={bookingForm.control} name="callNow" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-fit"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Urgent: Call Now</FormLabel></div></FormItem>)} />
+                    <FormField control={bookingForm.control} name="callType" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Call Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={selectedDoctor?.type === 'Government'} // Lock to in-person if government
+                          value={selectedDoctor?.type === 'Government' ? 'in-person' : field.value}
+                        >
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select call type" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {/* Conditionally render options */}
+                            {selectedDoctor?.type !== 'Government' && (
+                              <>
+                                <SelectItem value="video">Video Call</SelectItem>
+                                <SelectItem value="voice">Voice Call</SelectItem>
+                              </>
+                            )}
+                            <SelectItem value="in-person">In-Person</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {selectedDoctor?.type === 'Government' && <p className="text-[10px] text-muted-foreground">Only in-person visits available.</p>}
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={bookingForm.control} name="callNow" render={({ field }) => (
+                      <FormItem className={`flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-fit ${selectedDoctor?.type === 'Government' ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''}`}>
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={selectedDoctor?.type === 'Government'}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Urgent: Call Now</FormLabel>
+                          {selectedDoctor?.type === 'Government' && <p className="text-[10px] text-red-500">Not available for hospitals</p>}
+                        </div>
+                      </FormItem>
+                    )} />
+
                     <FormField control={bookingForm.control} name="isPrivate" render={({ field }) => (
                       <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 h-fit border-blue-200 bg-blue-50/30 dark:bg-blue-900/10">
                         <FormControl>

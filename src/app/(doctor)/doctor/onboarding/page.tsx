@@ -18,14 +18,15 @@ import { FileUp, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useUser } from "@/hooks/use-user"; // Sync hook
 
 const formSchema = z.object({
+    fullName: z.string().min(2, "Full Name is required."),
     licenseNumber: z.string().min(4, "Medical License Number is required."),
     specialization: z.string().min(2, "Specialization is required."),
     hospitalName: z.string().min(2, "Hospital/Clinic name is required."),
-    phoneNumber: z.string().min(10, "Valid phone number is required."), // Collect again or pre-fill
+    phoneNumber: z.string().min(10, "Valid phone number is required."),
 });
 
 export default function DoctorOnboardingPage() {
-    const { user, loading: authLoading } = useUser(); // Ensures Firebase Sync
+    const { user, loading: authLoading } = useUser();
     const db = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
@@ -36,6 +37,7 @@ export default function DoctorOnboardingPage() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
+            fullName: "",
             licenseNumber: "",
             specialization: "",
             hospitalName: "",
@@ -43,8 +45,7 @@ export default function DoctorOnboardingPage() {
         },
     });
 
-    // Pre-fill phone if available in connection
-    // (We'll skip complex pre-fill for now to ensure robustness)
+    // ... (onSubmit function start)
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         if (!user || !db) {
@@ -60,14 +61,14 @@ export default function DoctorOnboardingPage() {
 
             setUploading(true);
 
-            // Upload Files
+            // Upload Files (Logic remains same)
             let licenseUrl = "";
             let idProofUrl = "";
             try {
                 const fileExt = licenseFile.name.split('.').pop();
                 const idExt = idProofFile.name.split('.').pop();
                 const timestamp = Date.now();
-                // Unique names
+
                 const licenseFileName = `${user.uid}-license-${timestamp}.${fileExt}`;
                 const idProofFileName = `${user.uid}-idproof-${timestamp}.${idExt}`;
 
@@ -78,11 +79,14 @@ export default function DoctorOnboardingPage() {
                 throw new Error("Failed to upload documents. Please try again.");
             }
 
-            // Create/Update Doctor Document in Firestore
+            // Create/Update Doctor Document
             await setDoc(doc(db, "doctors", user.uid), {
                 uid: user.uid,
                 email: user.email,
-                name: user.displayName || user.email?.split('@')[0] || 'Doctor', // Fallback name
+                name: values.fullName, // Use explicitly entered name
+
+                // ... (rest of fields)
+
                 licenseNumber: values.licenseNumber,
                 specialization: values.specialization,
                 hospitalName: values.hospitalName,
@@ -128,6 +132,18 @@ export default function DoctorOnboardingPage() {
                 <CardContent>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+
+                            <FormField
+                                control={form.control}
+                                name="fullName"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Full Name</FormLabel>
+                                        <FormControl><Input placeholder="Dr. John Doe" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField

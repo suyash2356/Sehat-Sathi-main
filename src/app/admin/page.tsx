@@ -16,6 +16,7 @@ interface Doctor {
     uid: string;
     name: string;
     email: string;
+    phoneNumber?: string;
     specialization?: string;
     licenseNumber?: string;
     isVerified: boolean;
@@ -219,6 +220,7 @@ export default function AdminDashboard() {
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 mt-3 text-sm text-gray-600">
                                             <p><span className="font-medium text-foreground">Email:</span> {doctor.email}</p>
+                                            <p><span className="font-medium text-foreground">Phone:</span> {doctor.phoneNumber || 'Not Provided'}</p>
                                             <p><span className="font-medium text-foreground">License ID:</span> {doctor.licenseNumber || 'Not Provided'}</p>
                                             <p><span className="font-medium text-foreground">Specialization:</span> {doctor.specialization || 'Not Provided'}</p>
                                             <p><span className="font-medium text-foreground">Hospital:</span> {doctor.hospitalName || 'Not Provided'}</p>
