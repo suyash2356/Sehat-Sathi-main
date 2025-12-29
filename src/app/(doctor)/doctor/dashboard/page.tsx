@@ -17,16 +17,7 @@ import { decryptData } from '@/lib/encryption';
 import { StatCard } from "@/components/dashboard/StatCard";
 import { AppointmentCard } from "@/components/dashboard/AppointmentCard";
 
-interface Appointment {
-  id: string;
-  patientId: string;
-  doctorName: string;
-  patientDetails: { name: string; age: number; gender: string; disease: string; phone?: string; };
-  status: 'pending' | 'accepted' | 'rejected' | 'in_call' | 'completed';
-  mode: 'video' | 'voice' | 'visit';
-  timing: 'scheduled' | 'call_now';
-  scheduledTime: any;
-}
+import { Appointment } from "@/types/appointment";
 
 interface Medication {
   name: string;

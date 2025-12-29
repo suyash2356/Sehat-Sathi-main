@@ -3,20 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Clock, User, Calendar, Phone, Video, MapPin, FileText } from "lucide-react";
 
-interface Appointment {
-    id: string;
-    patientDetails: { name: string; age: number; gender: string; disease: string; };
-    status: 'pending' | 'accepted' | 'rejected' | 'in_call' | 'completed';
-    mode: 'video' | 'voice' | 'visit';
-    timing: 'scheduled' | 'call_now';
-    scheduledTime: any;
-}
+import { Appointment } from "@/types/appointment";
 
 interface AppointmentCardProps {
     appointment: Appointment;
     onAccept?: (id: string) => void;
     onReject?: (id: string) => void;
-    onStartCall?: (app: Appointment) => void;
+    onStartCall?: (app: Appointment) => void | Promise<void>;
     onComplete?: (id: string) => void;
     onPrescribe?: (app: Appointment) => void;
     showActions?: boolean;
