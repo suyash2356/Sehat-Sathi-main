@@ -119,8 +119,15 @@ export default function PatientDashboardPage() {
       unsubSession = onSnapshot(
         query(collection(db, 'callSessions'), where('patientId', '==', user.uid)),
         snap => {
-          const session = snap.docs[0];
-          setActiveCallSession(session ? session.id : null);
+          let activeId = null;
+          for (const d of snap.docs) {
+            const data = d.data();
+            if (data.status !== 'ended' && data.callStatus !== 'ended') {
+              activeId = d.id;
+              break;
+            }
+          }
+          setActiveCallSession(activeId);
         }
       );
     };

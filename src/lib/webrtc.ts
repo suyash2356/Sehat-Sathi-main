@@ -13,41 +13,10 @@ export interface CallData {
   patientName: string;
   patientPhone: string;
   issue: string;
-  doctorName?: string;
-  doctorSpecialization?: string;
-  age?: number;
-  gender?: string;
-  callType?: 'video' | 'voice' | 'in-person';
-  mode?: 'video' | 'voice' | 'visit'; // Synced with new architecture
-  patientDetails?: {
-    name?: string;
-    age?: number;
-    gender?: string;
-    phone?: string;
-  };
-}
-
-export interface WebRTCConfig {
-  iceServers: RTCIceServer[];
-}
-
-export class WebRTCService {
-  private peerConnection: RTCPeerConnection | null = null;
-  private localStream: MediaStream | null = null;
-  private remoteStream: MediaStream | null = null;
-  private isInitiator: boolean = false;
-  private callId: string | null = null;
-
-  constructor(private config: WebRTCConfig) { }
-
-  async initializeCall(callId: string, isInitiator: boolean = false): Promise<void> {
-    this.callId = callId;
-    this.isInitiator = isInitiator;
-
     try {
       // Get user media
       this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: !isVoice,
         audio: true
       });
 
@@ -188,6 +157,17 @@ export const defaultWebRTCConfig: WebRTCConfig = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' }
-  ]
+    { urls: 'stun:stun2.l.google.com:19302' },
+    {
+      urls: process.env.NEXT_PUBLIC_TURN_URL || 'turn:openrelay.metered.ca:80',
+      username: process.env.NEXT_PUBLIC_TURN_USERNAME || 'openrelayproject',
+      credential: process.env.NEXT_PUBLIC_TURN_PASSWORD || 'openrelayproject'
+    },
+    {
+      urls: process.env.NEXT_PUBLIC_TURN_URL_TLS || 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: process.env.NEXT_PUBLIC_TURN_USERNAME || 'openrelayproject',
+      credential: process.env.NEXT_PUBLIC_TURN_PASSWORD || 'openrelayproject'
+    }
+  ],
+  iceCandidatePoolSize: 10 // Pre-gathers ICE candidates to drastically speed up connection times
 };

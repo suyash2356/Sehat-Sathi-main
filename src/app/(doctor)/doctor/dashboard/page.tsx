@@ -164,9 +164,12 @@ export default function DoctorDashboardPage() {
         appointmentId: app.id,
         doctorId: user.uid,
         doctorName: (user.displayName || user.email || ''),
+        doctorSpecialization: (app as any).doctorSpecialization || 'Doctor',
         patientId: app.patientId,
+        patientDetails: app.patientDetails || {},
         mode: app.mode || 'video',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        status: 'active'
       });
       await updateDoc(doc(db, 'appointments', app.id), { status: 'in_call' });
       router.push(`/video-call?sessionId=${app.id}`);

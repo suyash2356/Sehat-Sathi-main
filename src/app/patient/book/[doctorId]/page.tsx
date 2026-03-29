@@ -103,6 +103,7 @@ export default function BookAppointmentPage() {
         const endOfDay = new Date(date); endOfDay.setHours(23, 59, 59, 999);
         const q = query(collection(db, "appointments"),
           where("doctorId", "==", doctorId),
+          where("status", "in", ["pending", "accepted"]),
           where("scheduledTime", ">=", Timestamp.fromDate(startOfDay)),
           where("scheduledTime", "<=", Timestamp.fromDate(endOfDay)));
 

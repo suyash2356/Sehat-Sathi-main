@@ -32,6 +32,7 @@ export default function VideoCall() {
     callData,
     isInitiator,
     error,
+    remoteMuted,
     toggleMute,
     toggleVideo,
     endCall
@@ -49,8 +50,11 @@ export default function VideoCall() {
   const leftRef = isInitiator ? remoteVideoRef : localVideoRef;
   const rightRef = isInitiator ? localVideoRef : remoteVideoRef;
 
-  const leftIsMuted = isInitiator ? false : isMuted;
-  const rightIsMuted = isInitiator ? isMuted : false;
+  const leftIsLocal = !isInitiator;
+  const rightIsLocal = isInitiator;
+
+  const leftIsMuted = isInitiator ? remoteMuted : isMuted;
+  const rightIsMuted = isInitiator ? isMuted : remoteMuted;
 
   const leftIsVideoOff = isInitiator ? false : isVideoOff;
   const rightIsVideoOff = isInitiator ? isVideoOff : false;
@@ -150,7 +154,7 @@ export default function VideoCall() {
       </div>
 
       {/* Main Content Area */}
-      {(callData as any)?.callType === 'voice' ? (
+      {(callData as any)?.mode === 'voice' ? (
         /* Voice Call Interface */
         <div className="flex-1 flex flex-col items-center justify-center gap-8 min-h-0 relative">
           <div className="flex flex-col md:flex-row items-center gap-8 md:gap-16 z-10">
@@ -207,8 +211,8 @@ export default function VideoCall() {
 
           {/* Hidden Video Elements to keep streams active but invisible */}
           <div className="hidden">
-            <video ref={leftRef} autoPlay muted={isInitiator} playsInline />
-            <video ref={rightRef} autoPlay muted={!isInitiator} playsInline />
+            <video ref={leftRef} autoPlay muted={leftIsLocal} playsInline />
+            <video ref={rightRef} autoPlay muted={rightIsLocal} playsInline />
           </div>
         </div>
       ) : (
@@ -221,7 +225,7 @@ export default function VideoCall() {
                 ref={leftRef}
                 className="w-full h-full object-cover"
                 autoPlay
-                muted={isInitiator}
+                muted={leftIsLocal}
                 playsInline
               />
             ) : (
@@ -263,7 +267,7 @@ export default function VideoCall() {
                 ref={rightRef}
                 className="w-full h-full object-cover"
                 autoPlay
-                muted={!isInitiator}
+                muted={rightIsLocal}
                 playsInline
               />
             ) : (
@@ -307,7 +311,7 @@ export default function VideoCall() {
             {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </Button>
 
-          {(callData as any)?.callType !== 'voice' && (
+          {(callData as any)?.mode !== 'voice' && (
             <Button
               variant={isVideoOff ? 'destructive' : 'secondary'}
               size="icon"

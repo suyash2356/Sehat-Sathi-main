@@ -148,7 +148,7 @@ export function CallNotificationManager() {
         const apptNotifs = snap.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-        }));
+        })).filter((n: any) => n.mode !== 'visit');
 
         setNotifications(apptNotifs);
       },
@@ -169,17 +169,21 @@ export function CallNotificationManager() {
     unsubSessions = onSnapshot(
       sessionQuery,
       snap => {
-        const sessions: CallSessionNotification[] = snap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            appointmentId: data.appointmentId,
-            doctorName: data.doctorName,
-            mode: data.mode,
-            patientId: data.patientId,
-            started: true,
-          };
-        });
+        const sessions: CallSessionNotification[] = snap.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              appointmentId: data.appointmentId,
+              doctorName: data.doctorName,
+              mode: data.mode,
+              patientId: data.patientId,
+              started: true,
+              status: data.status,
+              callStatus: data.callStatus
+            };
+          })
+          .filter(s => s.status !== 'ended' && s.callStatus !== 'ended');
 
         // Sessions override appointment notifications
         setNotifications(prev => {

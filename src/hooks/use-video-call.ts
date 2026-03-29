@@ -20,6 +20,7 @@ export interface VideoCallState {
   error: string | null;
   sessionStatus: 'loading' | 'active' | 'ended' | 'not_found';
   isInitiator: boolean; // Added
+  remoteMuted: boolean;
 }
 
 export function useVideoCall() {
@@ -38,7 +39,8 @@ export function useVideoCall() {
     callData: null,
     error: null,
     sessionStatus: 'loading',
-    isInitiator: false // Initial
+    isInitiator: false, // Initial
+    remoteMuted: false
   });
 
   const webrtcService = useRef<WebRTCService | null>(null);
@@ -85,7 +87,8 @@ export function useVideoCall() {
         ...prev,
         callData: { id: sessionId, ...sessionData } as any,
         sessionStatus: 'active',
-        isInitiator // Store it
+        isInitiator, // Store it
+        remoteMuted: isInitiator ? !!sessionData.receiverMuted : !!sessionData.initiatorMuted
       }));
 
       // 3. Initialize WebRTC if not already done
@@ -139,7 +142,7 @@ export function useVideoCall() {
       };
 
       // Start Media
-      await webrtcService.current.initializeCall(sessionId, isInitiator);
+      await webrtcService.current.initializeCall(sessionId, isInitiator, mode === 'voice');
       setState(prev => ({ ...prev, localStream: webrtcService.current!.getLocalStream() }));
 
       // Join Signaling
@@ -170,6 +173,15 @@ export function useVideoCall() {
 
       // Verify Role Action
       if (isInitiator) {
+        // Clear previous stale signaling states to force a clean re-negotiation
+        try {
+          await updateDoc(doc(db, 'callSessions', sessionId), {
+            offer: null,
+            answer: null
+          });
+        } catch (e) {
+          // Ignore failing update if doc was removed
+        }
         const offer = await webrtcService.current.createOffer();
         await signalingService.current.sendOffer(offer);
       }
@@ -241,10 +253,18 @@ export function useVideoCall() {
     }
   };
 
-  const toggleMute = () => {
+  const toggleMute = async () => {
     if (webrtcService.current) {
       const isMuted = !webrtcService.current.toggleAudio();
       setState(prev => ({ ...prev, isMuted }));
+      
+      if (sessionIdRef.current) {
+        try {
+          await updateDoc(doc(db, 'callSessions', sessionIdRef.current), {
+            [state.isInitiator ? 'initiatorMuted' : 'receiverMuted']: isMuted
+          });
+        } catch (e) {}
+      }
     }
   };
 

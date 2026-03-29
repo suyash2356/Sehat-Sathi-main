@@ -292,6 +292,29 @@ export default function MapPage() {
     if (!isCallNow && values.appointmentDate && values.appointmentTime) {
       const dateTimeString = `${values.appointmentDate}T${values.appointmentTime}`;
       scheduledTimeTimestamp = Timestamp.fromDate(new Date(dateTimeString));
+
+      // Prevent Double Booking
+      try {
+        const apptsRef = collection(db, 'appointments');
+        const qOverlap = query(
+          apptsRef,
+          where('doctorId', '==', selectedDoctor.id),
+          where('scheduledTime', '==', scheduledTimeTimestamp),
+          where('status', 'in', ['pending', 'accepted'])
+        );
+        const overlapSnap = await getDocs(qOverlap);
+        if (!overlapSnap.empty) {
+          toast({ 
+            title: 'Time Slot Unavailable', 
+            description: 'The doctor already has an appointment booked at this exact time. Please choose another time.', 
+            variant: 'destructive' 
+          });
+          return; // Abort submission
+        }
+      } catch (err) {
+        // Soft fail if index is missing or network error, let them book
+        console.warn("Double booking check skipped", err);
+      }
     }
 
     const bookingDetails = {
@@ -307,7 +330,7 @@ export default function MapPage() {
         phone: encryptData(values.phone)
       },
       status: status,
-      mode: isCallNow ? 'video' : (values.callType === 'in-person' ? 'visit' : 'video'), // Align mode
+      mode: values.callType === 'in-person' ? 'visit' : values.callType,
       timing: isCallNow ? 'call_now' : 'scheduled',
       scheduledTime: scheduledTimeTimestamp,
       createdAt: Timestamp.now(),
@@ -342,7 +365,7 @@ export default function MapPage() {
   if (!isLoaded) return <div>Loading Maps...</div>;
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col min-h-[calc(100vh-4rem)]">
       <div className="grid md:grid-cols-4 flex-grow min-h-0">
         {/* Desktop sidebar */}
         <div className="col-span-1 p-4 bg-gray-100 dark:bg-gray-800 overflow-y-auto hidden md:block relative z-30">
@@ -568,7 +591,7 @@ export default function MapPage() {
                 </fieldset>
                 <div className="flex justify-end">
                   <Button type="submit" size="lg" disabled={!selectedDoctor || bookingForm.formState.isSubmitting}>
-                    {callNow ? 'Start Emergency Call' : 'Schedule Appointment'}
+                    {callNow ? (bookingForm.watch('callType') === 'in-person' ? 'Request Urgent Walk-in' : 'Start Emergency Call') : 'Schedule Appointment'}
                   </Button>
                 </div>
               </form>
