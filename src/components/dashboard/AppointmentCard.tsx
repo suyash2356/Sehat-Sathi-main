@@ -12,10 +12,11 @@ interface AppointmentCardProps {
     onStartCall?: (app: Appointment) => void | Promise<void>;
     onComplete?: (id: string) => void;
     onPrescribe?: (app: Appointment) => void;
+    onReschedule?: (app: Appointment) => void;
     showActions?: boolean;
 }
 
-export function AppointmentCard({ appointment: app, onAccept, onReject, onStartCall, onComplete, onPrescribe, showActions = true }: AppointmentCardProps) {
+export function AppointmentCard({ appointment: app, onAccept, onReject, onStartCall, onComplete, onPrescribe, onReschedule, showActions = true }: AppointmentCardProps) {
 
     // Helper to format date safely
     const formatDate = (time: any) => {
@@ -84,6 +85,10 @@ export function AppointmentCard({ appointment: app, onAccept, onReject, onStartC
                                 <Button size="sm" className="w-full bg-green-600 hover:bg-green-700" onClick={() => onAccept?.(app.id)}>Accept</Button>
                                 <Button size="sm" variant="destructive" className="w-full" onClick={() => onReject?.(app.id)}>Reject</Button>
                             </>
+                        )}
+                        
+                        {(app.status === 'pending' || app.status === 'accepted') && onReschedule && (
+                            <Button size="sm" variant="outline" className="w-full" onClick={() => onReschedule?.(app)}>Reschedule</Button>
                         )}
 
                         {(app.status === 'accepted' || app.status === 'in_call') && app.mode !== 'visit' && (

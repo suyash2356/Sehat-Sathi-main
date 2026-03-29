@@ -3,13 +3,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useUser } from '@/hooks/use-user';
 import { useFirestore } from '@/hooks/use-firebase';
-import { collection, query, where, doc, updateDoc, setDoc, onSnapshot, getDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, setDoc, onSnapshot, getDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Check, X, Video, Phone, Calendar, Clock, User, FileText, Plus, Trash, Loader2, Search, ListFilter, Users, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -51,6 +52,12 @@ export default function DoctorDashboardPage() {
   const [medications, setMedications] = useState<Medication[]>([{ name: '', strength: '', dosage: '', frequency: '', duration: '', instructions: '' }]);
   const [generalNotes, setGeneralNotes] = useState('');
   const [isPrescribing, setIsPrescribing] = useState(false);
+
+  // Reschedule Modal State
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
+  const [selectedRescheduleApp, setSelectedRescheduleApp] = useState<Appointment | null>(null);
+  const [newRescheduleDate, setNewRescheduleDate] = useState('');
+  const [newRescheduleTime, setNewRescheduleTime] = useState('');
 
 
   // Real-time Listener for Appointments
@@ -105,18 +112,26 @@ export default function DoctorDashboardPage() {
         };
       });
 
-      // Sort by date logic (helper)
-      const getDate = (a: Appointment) => {
-        if (a.timing === 'call_now') return new Date();
-        return a.scheduledTime?.toDate ? a.scheduledTime.toDate() : new Date(a.scheduledTime);
+      // Advanced Sort Logic: 'call_now' always trumps scheduled chronological times
+      const sortAppointments = (a: Appointment, b: Appointment) => {
+        if (a.timing === 'call_now' && b.timing !== 'call_now') return -1;
+        if (b.timing === 'call_now' && a.timing !== 'call_now') return 1;
+        
+        const dateA = a.scheduledTime?.toDate ? a.scheduledTime.toDate() : new Date(a.scheduledTime || Date.now());
+        const dateB = b.scheduledTime?.toDate ? b.scheduledTime.toDate() : new Date(b.scheduledTime || Date.now());
+        return dateA.getTime() - dateB.getTime();
       };
 
-      setRequests(processed.filter(a => a.status === 'pending').sort((a, b) => getDate(a).getTime() - getDate(b).getTime()));
-      setUpcoming(processed.filter(a => ['accepted', 'in_call'].includes(a.status)).sort((a, b) => getDate(a).getTime() - getDate(b).getTime()));
+      setRequests(processed.filter(a => a.status === 'pending').sort(sortAppointments));
+      setUpcoming(processed.filter(a => ['accepted', 'in_call'].includes(a.status)).sort(sortAppointments));
 
       // History sorted descending (newest first)
       const hist = processed.filter(a => ['completed', 'rejected'].includes(a.status));
-      setCompleted(hist.sort((a, b) => getDate(b).getTime() - getDate(a).getTime()));
+      setCompleted(hist.sort((a, b) => {
+        const dateA = a.scheduledTime?.toDate ? a.scheduledTime.toDate() : new Date(a.scheduledTime || Date.now());
+        const dateB = b.scheduledTime?.toDate ? b.scheduledTime.toDate() : new Date(b.scheduledTime || Date.now());
+        return dateB.getTime() - dateA.getTime();
+      }));
 
       setLoading(false);
     });
@@ -142,6 +157,29 @@ export default function DoctorDashboardPage() {
       await updateDoc(doc(db, 'appointments', id), { status: newStatus });
       toast({ title: `Appointment ${newStatus}` });
     } catch (e) { console.error(e); }
+  };
+
+  const handleRescheduleClick = (app: Appointment) => {
+    setSelectedRescheduleApp(app);
+    setNewRescheduleDate('');
+    setNewRescheduleTime('');
+    setIsRescheduleModalOpen(true);
+  };
+
+  const handleSaveReschedule = async () => {
+    if (!db || !selectedRescheduleApp || !newRescheduleDate || !newRescheduleTime) return;
+    try {
+      const dateTimeString = `${newRescheduleDate}T${newRescheduleTime}`;
+      const newTimestamp = Timestamp.fromDate(new Date(dateTimeString));
+      await updateDoc(doc(db, 'appointments', selectedRescheduleApp.id), {
+        scheduledTime: newTimestamp,
+        timing: 'scheduled'
+      });
+      toast({ title: 'Appointment Rescheduled' });
+      setIsRescheduleModalOpen(false);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
   };
 
   const handleStartCall = async (app: Appointment) => {
@@ -311,6 +349,7 @@ export default function DoctorDashboardPage() {
                         appointment={app}
                         onStartCall={handleStartCall}
                         onComplete={(id) => handleStatusUpdate(id, 'completed')}
+                        onReschedule={handleRescheduleClick}
                         showActions={true}
                       />
                     ))}
@@ -335,6 +374,7 @@ export default function DoctorDashboardPage() {
                   appointment={req}
                   onAccept={(id) => handleStatusUpdate(id, 'accepted')}
                   onReject={(id) => handleStatusUpdate(id, 'rejected')}
+                  onReschedule={handleRescheduleClick}
                 />
               ))}
             </div>
@@ -354,6 +394,7 @@ export default function DoctorDashboardPage() {
                   appointment={app}
                   onStartCall={handleStartCall}
                   onComplete={(id) => handleStatusUpdate(id, 'completed')}
+                  onReschedule={handleRescheduleClick}
                 />
               ))}
             </div>
@@ -393,58 +434,77 @@ export default function DoctorDashboardPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Prescription Modal - Unchanged Logic */}
-      {isPrescriptionModalOpen && selectedApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            <CardHeader className="flex flex-row justify-between items-center border-b">
-              <div>
-                <CardTitle>Prescription for {selectedApp.patientDetails.name}</CardTitle>
-                <CardDescription>Add medications below</CardDescription>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setIsPrescriptionModalOpen(false)}><X className="h-4 w-4" /></Button>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center"><h4 className="font-bold text-lg">Medications</h4><Button size="sm" onClick={handleAddMedication}><Plus className="h-4 w-4 mr-1" /> Add Medicine</Button></div>
-                {medications.map((med, i) => (
-                  <div key={i} className="grid grid-cols-2 md:grid-cols-12 gap-3 p-3 border rounded-lg items-end bg-gray-50/50">
-                    <div className="col-span-2 md:col-span-4">
-                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Name</label>
-                      <Input placeholder="Medicine Name" value={med.name} onChange={(e) => handleMedicationChange(i, 'name', e.target.value)} />
-                    </div>
-                    <div className="col-span-1 md:col-span-2">
-                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Dosage</label>
-                      <Input placeholder="Dosage" value={med.dosage} onChange={(e) => handleMedicationChange(i, 'dosage', e.target.value)} />
-                    </div>
-                    <div className="col-span-1 md:col-span-2">
-                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Freq</label>
-                      <Input placeholder="Freq" value={med.frequency} onChange={(e) => handleMedicationChange(i, 'frequency', e.target.value)} />
-                    </div>
-                    <div className="col-span-2 md:col-span-3">
-                      <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Instructions</label>
-                      <Input placeholder="Instructions" value={med.instructions} onChange={(e) => handleMedicationChange(i, 'instructions', e.target.value)} />
-                    </div>
-                    <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
-                      <Button variant="ghost" size="icon" onClick={() => handleRemoveMedication(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8">
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </div>
+      {/* Prescription Modal */}
+      <Dialog open={isPrescriptionModalOpen} onOpenChange={setIsPrescriptionModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Prescription for {selectedApp?.patientDetails.name}</DialogTitle>
+            <DialogDescription>Add medications below</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 pt-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center"><h4 className="font-bold text-lg">Medications</h4><Button size="sm" onClick={handleAddMedication}><Plus className="h-4 w-4 mr-1" /> Add Medicine</Button></div>
+              {medications.map((med, i) => (
+                <div key={i} className="grid grid-cols-2 md:grid-cols-12 gap-3 p-3 border rounded-lg items-end bg-gray-50/50">
+                  <div className="col-span-2 md:col-span-4">
+                    <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Name</label>
+                    <Input placeholder="Medicine Name" value={med.name} onChange={(e) => handleMedicationChange(i, 'name', e.target.value)} />
                   </div>
-                ))}
-              </div>
-              <div className="space-y-2">
-                <label className="font-bold">General Notes</label>
-                <Textarea placeholder="Rest, diet recommendations, etc." value={generalNotes} onChange={(e) => setGeneralNotes(e.target.value)} className="min-h-[100px]" />
-              </div>
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="ghost" onClick={() => setIsPrescriptionModalOpen(false)}>Cancel</Button>
-                <Button onClick={handleSubmitPrescription} disabled={isPrescribing}>{isPrescribing ? <Loader2 className="animate-spin mr-2" /> : <Check className="mr-2 h-4 w-4" />} Send Prescription</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Dosage</label>
+                    <Input placeholder="Dosage" value={med.dosage} onChange={(e) => handleMedicationChange(i, 'dosage', e.target.value)} />
+                  </div>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Freq</label>
+                    <Input placeholder="Freq" value={med.frequency} onChange={(e) => handleMedicationChange(i, 'frequency', e.target.value)} />
+                  </div>
+                  <div className="col-span-2 md:col-span-3">
+                    <label className="text-xs font-semibold text-muted-foreground md:hidden mb-1 block">Instructions</label>
+                    <Input placeholder="Instructions" value={med.instructions} onChange={(e) => handleMedicationChange(i, 'instructions', e.target.value)} />
+                  </div>
+                  <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveMedication(i)} className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8">
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <label className="font-bold">General Notes</label>
+              <Textarea placeholder="Rest, diet recommendations, etc." value={generalNotes} onChange={(e) => setGeneralNotes(e.target.value)} className="min-h-[100px]" />
+            </div>
+          </div>
+          <DialogFooter className="pt-4 border-t">
+            <Button variant="ghost" onClick={() => setIsPrescriptionModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmitPrescription} disabled={isPrescribing}>{isPrescribing ? <Loader2 className="animate-spin mr-2" /> : <Check className="mr-2 h-4 w-4" />} Send Prescription</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Modal */}
+      <Dialog open={isRescheduleModalOpen} onOpenChange={setIsRescheduleModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>Select a new date and time for this appointment.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">New Date</label>
+              <Input type="date" value={newRescheduleDate} onChange={e => setNewRescheduleDate(e.target.value)} min={new Date().toISOString().split('T')[0]} />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">New Time</label>
+              <Input type="time" value={newRescheduleTime} onChange={e => setNewRescheduleTime(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setIsRescheduleModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveReschedule} disabled={!newRescheduleDate || !newRescheduleTime}>Save Time</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

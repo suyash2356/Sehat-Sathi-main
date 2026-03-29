@@ -1,37 +1,3 @@
-'use client';
-
-export interface CallData {
-  id: string; // This is the sessionId
-  appointmentId: string; // The specific appointment ID
-  patientId: string;
-  doctorId: string;
-  scheduledTime?: Date;
-  isImmediate: boolean;
-  status: 'pending' | 'accepted' | 'active' | 'completed' | 'cancelled' | 'rejected' | 'noshow';
-  createdAt: Date;
-  callLink: string;
-  patientName: string;
-  patientPhone: string;
-  issue: string;
-    try {
-      // Get user media
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: !isVoice,
-        audio: true
-      });
-
-      // Create peer connection
-      this.peerConnection = new RTCPeerConnection(this.config);
-
-      // Add local stream to peer connection
-      this.localStream.getTracks().forEach(track => {
-        this.peerConnection!.addTrack(track, this.localStream!);
-      });
-
-      // Handle remote stream
-      this.peerConnection.ontrack = (event) => {
-        this.remoteStream = event.streams[0];
-        this.onRemoteStream?.(this.remoteStream);
       };
 
       // Handle ICE candidates

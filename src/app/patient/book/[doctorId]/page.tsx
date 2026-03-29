@@ -58,6 +58,8 @@ export default function BookAppointmentPage() {
     }
   });
 
+  const selectedMode = form.watch('mode');
+
   // 1. Fetch Doctor
   useEffect(() => {
     if (!db || !doctorId) return;
@@ -229,7 +231,13 @@ export default function BookAppointmentPage() {
               <CardDescription>{doctor.specialization}</CardDescription>
             </div>
             <Button variant="destructive" onClick={handleCallNow} className="animate-pulse">
-              <Video className="mr-2 h-4 w-4" /> Call Now (Urgent)
+              {selectedMode === 'visit' ? (
+                <><Calendar className="mr-2 h-4 w-4" /> Urgent Walk-in Request</>
+              ) : selectedMode === 'voice' ? (
+                <><Phone className="mr-2 h-4 w-4" /> Call Now (Voice)</>
+              ) : (
+                <><Video className="mr-2 h-4 w-4" /> Call Now (Video)</>
+              )}
             </Button>
           </div>
         </CardHeader>
