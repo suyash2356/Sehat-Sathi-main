@@ -43,6 +43,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { PrescriptionDialog } from './PrescriptionDialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -56,6 +57,7 @@ export function MyRequestsTab() {
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const [now, setNow] = useState(new Date());
 
@@ -189,6 +191,11 @@ export function MyRequestsTab() {
     return `Starts in ${mins}m`;
   };
 
+  const filteredAppointments = appointments.filter((app) => {
+    if (statusFilter === 'all') return true;
+    return app.status === statusFilter;
+  });
+
   if (userLoading || loadingTasks) {
     return (
       <div className="space-y-4 pt-4">
@@ -285,9 +292,31 @@ export function MyRequestsTab() {
         </div>
       )}
 
+      {/* ─── UI Section 2.5: Filters ─── */}
+      {appointments.length > 0 && (
+        <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200">
+          <span className="text-sm font-medium text-slate-500 pl-2">Filter Requests:</span>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="All Requests" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Every Request</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="accepted">Accepted & Scheduled</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="rejected">Declined</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {/* ─── UI Section 2: Appointment Cards ─── */}
       <div className="grid gap-4">
-        {appointments.map((app) => {
+        {filteredAppointments.length === 0 && appointments.length > 0 ? (
+           <div className="text-center py-8 text-slate-500 border border-dashed rounded-xl bg-slate-50">No appointment history matches the selected filter status.</div>
+        ) : filteredAppointments.map((app) => {
           const isUpcoming =
             app.status === 'pending' || app.status === 'accepted';
           
