@@ -41,6 +41,7 @@ const profileSchema = z.object({
     }
     return val;
   }, z.number().min(0, 'Experience cannot be negative.')),
+  contact: z.string().min(10, "Please enter a valid contact number.").optional(),
   bio: z.string().max(500, "Bio cannot exceed 500 characters.").optional(),
   profilePicture: z.union([z.string().url(), z.literal('')]).optional(),
   certifications: z.array(documentSchema).optional(),
@@ -83,6 +84,7 @@ export default function DoctorProfilePage() {
       district: '',
       village: '',
       experience: 0,
+      contact: '',
       bio: '',
       profilePicture: '',
       certifications: [],
@@ -120,6 +122,7 @@ export default function DoctorProfilePage() {
           district: data.district || '',
           village: data.village || '',
           experience: data.experience || 0,
+          contact: data.contact || data.phone || '',
           bio: data.bio || '',
           profilePicture: data.profilePicture || '',
           certifications: data.certifications || [],
@@ -440,10 +443,12 @@ export default function DoctorProfilePage() {
                     )} />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="experience" render={({ field }) => <FormItem><FormLabel>Years of Experience</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name="bio" render={({ field }) => <FormItem><FormLabel>Biography</FormLabel><FormControl><Textarea {...field} rows={5} placeholder="Tell patients a little about yourself..." /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name="contact" render={({ field }) => <FormItem><FormLabel>Contact Number</FormLabel><FormControl><Input type="tel" placeholder="+91..." {...field} /></FormControl><FormMessage /></FormItem>} />
                   </div>
+                  
+                  <FormField control={form.control} name="bio" render={({ field }) => <FormItem><FormLabel>Biography</FormLabel><FormControl><Textarea className="resize-none" {...field} rows={4} placeholder="Tell patients a little about yourself..." /></FormControl><FormMessage /></FormItem>} />
                 </TabsContent>
 
                 {/* Certifications Tab */}

@@ -29,6 +29,7 @@ export function PrescriptionDialog({
   const prescriptionRef = useRef<HTMLDivElement>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [stampUrl, setStampUrl] = useState<string | null>(null);
+  const [doctorProfile, setDoctorProfile] = useState<any>(null);
   const [loadingDocs, setLoadingDocs] = useState(true);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export function PrescriptionDialog({
           const data = doctorDoc.data();
           setSignatureUrl(data.signatureUrl ?? null);
           setStampUrl(data.stampUrl ?? null);
+          setDoctorProfile(data);
         }
       } catch (err) {
         console.error("Error fetching doctor docs", err);
@@ -113,6 +115,14 @@ export function PrescriptionDialog({
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-semibold text-lg">Dr. {prescription.doctorName}</p>
+                {doctorProfile && (
+                  <div className="text-sm text-slate-600 space-y-0.5 mb-2">
+                    <p className="font-semibold text-blue-700">{doctorProfile.specialization || 'Consulting Physician'}</p>
+                    <p>{doctorProfile.hospitalName || 'Sehat Sathi Clinic'}</p>
+                    <p>{doctorProfile.hospitalAddress || `${doctorProfile.village || ''} ${doctorProfile.district || ''} ${doctorProfile.state || ''}`.trim() || 'Digital Consultation'}</p>
+                    <p>Contact: {doctorProfile.contact || 'N/A'}</p>
+                  </div>
+                )}
                 <p className="text-slate-600 text-sm">
                   {new Date(prescription.createdAt).toLocaleString()}
                 </p>
