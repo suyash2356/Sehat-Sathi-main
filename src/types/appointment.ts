@@ -10,8 +10,11 @@ export interface Appointment {
         disease: string;
         phone?: string;
     };
-    status: 'pending' | 'accepted' | 'rejected' | 'in_call' | 'completed';
+    status: 'pending' | 'accepted' | 'rejected' | 'in_call' | 'completed' | 'cancelled';
     mode: 'video' | 'voice' | 'visit';
     timing: 'scheduled' | 'call_now';
     scheduledTime: any;
+    cancellationReason?: string;
+    cancelledBy?: string;
+    cancelledAt?: any;
 }

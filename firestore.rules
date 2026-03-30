@@ -69,7 +69,7 @@ service cloud.firestore {
       // - Patient can cancel (if pending)
       allow update: if isAuthenticated() && (
         (resource.data.doctorId == request.auth.uid) ||
-        (resource.data.patientId == request.auth.uid && resource.data.status == 'pending')
+        (resource.data.patientId == request.auth.uid && (resource.data.status == 'pending' || resource.data.status == 'accepted'))
       );
     }
 
@@ -132,6 +132,12 @@ service cloud.firestore {
       
       // Admin deletes
       allow update, delete: if isAdmin();
+    }
+
+    // 4. Notifications
+    match /notifications/{notificationId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
     }
   }
 }

@@ -126,7 +126,7 @@ export default function DoctorDashboardPage() {
       setUpcoming(processed.filter(a => ['accepted', 'in_call'].includes(a.status)).sort(sortAppointments));
 
       // History sorted descending (newest first)
-      const hist = processed.filter(a => ['completed', 'rejected'].includes(a.status));
+      const hist = processed.filter(a => ['completed', 'rejected', 'cancelled'].includes(a.status));
       setCompleted(hist.sort((a, b) => {
         const dateA = a.scheduledTime?.toDate ? a.scheduledTime.toDate() : new Date(a.scheduledTime || Date.now());
         const dateB = b.scheduledTime?.toDate ? b.scheduledTime.toDate() : new Date(b.scheduledTime || Date.now());
@@ -301,7 +301,7 @@ export default function DoctorDashboardPage() {
           value={completed.length}
           icon={ClipboardList}
           color="text-green-600"
-          description="Completed & Rejected"
+          description="Completed, Rejected & Cancelled"
         />
         <StatCard
           title="Today's Date"
@@ -416,6 +416,7 @@ export default function DoctorDashboardPage() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>

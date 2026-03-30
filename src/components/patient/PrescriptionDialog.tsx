@@ -7,10 +7,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { Download } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PrescriptionDialogProps {
   prescription: any | null; // using any for simplicity, as per project standards or inferred types
@@ -24,14 +27,53 @@ export function PrescriptionDialog({
   onOpenChange,
 }: PrescriptionDialogProps) {
   const prescriptionRef = useRef<HTMLDivElement>(null);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [stampUrl, setStampUrl] = useState<string | null>(null);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+
+  useEffect(() => {
+    if (!isOpen || !prescription?.doctorId) return;
+
+    let isMounted = true;
+    setLoadingDocs(true);
+
+    const fetchDoctorDocs = async () => {
+      try {
+        const doctorDoc = await getDoc(doc(db, 'doctors', prescription.doctorId));
+        if (doctorDoc.exists() && isMounted) {
+          const data = doctorDoc.data();
+          setSignatureUrl(data.signatureUrl ?? null);
+          setStampUrl(data.stampUrl ?? null);
+        }
+      } catch (err) {
+        console.error("Error fetching doctor docs", err);
+      } finally {
+        if (isMounted) setLoadingDocs(false);
+      }
+    };
+
+    fetchDoctorDocs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, prescription]);
 
   const handleDownloadPdf = async () => {
     if (!prescriptionRef.current || !prescription) return;
 
     try {
+      const images = prescriptionRef.current.querySelectorAll('img');
+      await Promise.all(
+        Array.from(images).map(img =>
+          img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })
+        )
+      );
+
       const canvas = await html2canvas(prescriptionRef.current, {
-        scale: 2,
         useCORS: true,
+        allowTaint: false,
+        scale: 2,
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -124,9 +166,50 @@ export function PrescriptionDialog({
               </p>
             </div>
           )}
+
+          <div className="mt-12 border-t pt-8">
+            <div className="flex justify-between items-end">
+              <div className="w-40 flex flex-col items-center">
+                {loadingDocs ? (
+                  <Skeleton className="w-[120px] h-[120px] rounded-full" />
+                ) : stampUrl ? (
+                  <img
+                    src={stampUrl}
+                    alt="Doctor Stamp"
+                    style={{ width: '120px', height: 'auto', objectFit: 'contain' }}
+                    crossOrigin="anonymous"
+                  />
+                ) : (
+                  <div className="h-[120px] flex items-center justify-center text-slate-400 italic text-sm">
+                    Stamp not available
+                  </div>
+                )}
+              </div>
+              
+              <div className="w-48 flex flex-col items-center">
+                {loadingDocs ? (
+                  <Skeleton className="w-[160px] h-[60px]" />
+                ) : signatureUrl ? (
+                  <img
+                    src={signatureUrl}
+                    alt="Doctor Signature"
+                    style={{ width: '160px', height: 'auto', objectFit: 'contain' }}
+                    crossOrigin="anonymous"
+                  />
+                ) : (
+                  <div className="h-[60px] flex items-center justify-center text-slate-400 italic text-sm">
+                    Signature not available
+                  </div>
+                )}
+                <div className="w-full border-t border-slate-800 mt-2 pt-1 text-center">
+                  <p className="font-bold text-sm text-slate-800">Dr. {prescription.doctorName}</p>
+                </div>
+              </div>
+            </div>
+          </div>
           
-          <div className="mt-12 text-center text-xs text-slate-400 border-t pt-4">
-            This is an electronically generated prescription.
+          <div className="mt-8 text-center text-xs text-slate-500 pt-4">
+            * This prescription is digitally issued via Sehat Sathi. Verify at sehat-sathi.com
           </div>
         </div>
         

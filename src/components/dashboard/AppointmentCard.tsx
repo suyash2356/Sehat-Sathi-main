@@ -37,6 +37,7 @@ export function AppointmentCard({ appointment: app, onAccept, onReject, onStartC
             case 'in_call': return 'bg-red-100 text-red-800 hover:bg-red-100/80 animate-pulse';
             case 'completed': return 'bg-green-100 text-green-800 hover:bg-green-100/80';
             case 'rejected': return 'bg-gray-100 text-gray-800 hover:bg-gray-100/80';
+            case 'cancelled': return 'bg-red-100 text-red-800 hover:bg-red-100/80';
             default: return 'bg-gray-100 text-gray-800';
         }
     };
@@ -62,6 +63,7 @@ export function AppointmentCard({ appointment: app, onAccept, onReject, onStartC
                     </div>
                     <Badge variant="secondary" className={getStatusColor(app.status)}>
                         {app.status.toUpperCase().replace('_', ' ')}
+                        {app.status === 'cancelled' && app.cancelledBy === 'patient' ? ' BY PATIENT' : ''}
                     </Badge>
                 </div>
             </CardHeader>
@@ -77,6 +79,12 @@ export function AppointmentCard({ appointment: app, onAccept, onReject, onStartC
                 <div className="p-2 bg-gray-50 rounded text-sm mb-4">
                     <span className="font-semibold text-gray-700">Reason:</span> {app.patientDetails.disease}
                 </div>
+
+                {app.status === 'cancelled' && app.cancellationReason && (
+                    <div className="text-xs italic text-gray-500 mb-4 px-1">
+                        Reason: {app.cancellationReason}
+                    </div>
+                )}
 
                 {showActions && (
                     <div className="flex gap-2 mt-auto">

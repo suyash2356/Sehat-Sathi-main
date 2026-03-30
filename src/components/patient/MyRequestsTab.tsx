@@ -10,6 +10,8 @@ import {
   orderBy,
   updateDoc,
   doc,
+  serverTimestamp,
+  addDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useUser } from '@/hooks/use-user';
@@ -40,11 +42,15 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PrescriptionDialog } from './PrescriptionDialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 export function MyRequestsTab() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [appointments, setAppointments] = useState<any[]>([]);
   const [activeSession, setActiveSession] = useState<any | null>(null);
@@ -55,6 +61,8 @@ export function MyRequestsTab() {
 
   // Cancel dialog state
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Prescription dialog state
   const [prescriptionOpen, setPrescriptionOpen] = useState(false);
@@ -122,18 +130,44 @@ export function MyRequestsTab() {
 
   const handleCancelClick = (id: string) => {
     setCancelId(id);
+    setCancelReason("");
   };
 
   const confirmCancel = async () => {
-    if (!cancelId) return;
+    if (!cancelId || cancelReason.length < 10) return;
+    setIsCancelling(true);
     try {
-      await updateDoc(doc(db, 'appointments', cancelId), {
+      const appRef = doc(db, 'appointments', cancelId);
+      const app = appointments.find((a) => a.id === cancelId);
+      
+      await updateDoc(appRef, {
         status: 'cancelled',
+        cancellationReason: cancelReason.trim(),
+        cancelledBy: 'patient',
+        cancelledAt: serverTimestamp()
       });
+
+      if (app) {
+        await addDoc(collection(db, 'notifications'), {
+          recipientId: app.doctorId,
+          recipientRole: 'doctor',
+          type: 'appointment_cancelled',
+          appointmentId: cancelId,
+          patientName: app.patientDetails.name,
+          cancellationReason: cancelReason.trim(),
+          message: `Appointment cancelled by patient. Reason: ${cancelReason.trim()}`,
+          isRead: false,
+          createdAt: serverTimestamp()
+        });
+      }
+
+      toast({ title: "Appointment cancelled successfully." });
+      setCancelId(null);
     } catch (err) {
       console.error('Failed to cancel appointment', err);
+      toast({ title: "Failed to cancel. Please try again.", variant: "destructive" });
     } finally {
-      setCancelId(null);
+      setIsCancelling(false);
     }
   };
 
@@ -383,29 +417,36 @@ export function MyRequestsTab() {
         })}
       </div>
 
-      <AlertDialog
-        open={!!cancelId}
-        onOpenChange={(open) => !open && setCancelId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cancel Appointment</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to cancel this appointment request? This
-              action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep Appointment</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+      <Dialog open={!!cancelId} onOpenChange={(open) => !open && setCancelId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Appointment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel your appointment with Dr. {appointments.find(a => a.id === cancelId)?.doctorName}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Reason for cancellation *</label>
+            <Textarea 
+              placeholder="Please write your reason here..." 
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="resize-none h-24"
+            />
+            <p className="text-xs text-muted-foreground mt-2">(min 10 characters, required)</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelId(null)} disabled={isCancelling}>Keep Appointment</Button>
+            <Button 
+              className="bg-red-600 hover:bg-red-700 text-white" 
               onClick={confirmCancel}
+              disabled={cancelReason.length < 10 || isCancelling}
             >
-              Confirm Cancel
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancel Appointment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <PrescriptionDialog
         prescription={selectedPrescription}
