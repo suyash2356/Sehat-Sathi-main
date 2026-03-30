@@ -11,6 +11,7 @@ import { collection, query, where, getDocs, Timestamp, addDoc } from 'firebase/f
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 // UI Components
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,9 +30,11 @@ import {
   Mic,
   User as UserIcon,
   BotMessageSquare,
-  Globe
+  Globe,
+  ClipboardList
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { MyRequestsTab } from '@/components/patient/MyRequestsTab';
 
 const libraries: ("places" | "drawing" | "geometry" | "visualization")[] = ['places'];
 
@@ -366,7 +369,22 @@ export default function MapPage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">
-      <div className="grid md:grid-cols-4 flex-grow min-h-0">
+      <Tabs defaultValue="map" className="flex flex-col flex-1">
+        <div className="bg-white dark:bg-gray-900 border-b px-4 py-2 sticky top-0 z-40">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto">
+            <TabsTrigger value="map" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Find & Book
+            </TabsTrigger>
+            <TabsTrigger value="requests" className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" />
+              My Requests
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="map" className="flex flex-col flex-1 mt-0">
+          <div className="grid md:grid-cols-4 flex-grow min-h-0">
         {/* Desktop sidebar */}
         <div className="col-span-1 p-4 bg-gray-100 dark:bg-gray-800 overflow-y-auto hidden md:block relative z-30">
           <h2 className="text-xl font-bold mb-4">Find a Doctor</h2>
@@ -599,6 +617,14 @@ export default function MapPage() {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
+
+        <TabsContent value="requests" className="flex flex-col flex-1 mt-0 bg-gray-50/50 p-4 sm:p-6 min-h-[50vh]">
+          <div className="max-w-4xl mx-auto w-full">
+             <MyRequestsTab />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

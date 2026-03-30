@@ -1,3 +1,100 @@
+'use client';
+
+/* ------------------------------------------------------------------ */
+/*  WebRTC Service                                                     */
+/*  Manages RTCPeerConnection, local/remote streams, ICE handling      */
+/* ------------------------------------------------------------------ */
+
+export interface WebRTCConfig {
+  iceServers: RTCIceServer[];
+  iceCandidatePoolSize?: number;
+}
+
+export interface CallData {
+  id: string;
+  appointmentId: string;
+  doctorId: string;
+  patientId: string;
+  doctorName?: string;
+  doctorSpecialization?: string;
+  patientDetails?: {
+    name: string;
+    age?: number;
+    gender?: string;
+    disease?: string;
+    phone?: string;
+  };
+  mode: 'video' | 'voice';
+  status: string;
+  callStatus?: string;
+  age?: number;
+  gender?: string;
+  initiatorMuted?: boolean;
+  receiverMuted?: boolean;
+}
+
+export class WebRTCService {
+  private peerConnection: RTCPeerConnection | null = null;
+  private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
+  private callId: string | null = null;
+  private config: WebRTCConfig;
+
+  // Event handlers
+  onRemoteStream?: (stream: MediaStream) => void;
+  onIceCandidate?: (candidate: RTCIceCandidate) => void;
+  onConnectionStateChange?: (state: string | undefined) => void;
+
+  constructor(config: WebRTCConfig) {
+    this.config = config;
+  }
+
+  /**
+   * Initialize the call:
+   * 1. Create RTCPeerConnection
+   * 2. Get local media (respecting voice-only mode)
+   * 3. Explicitly enable audio tracks
+   * 4. Add ALL tracks to peer connection BEFORE any offer/answer
+   */
+  async initializeCall(
+    callId: string,
+    isInitiator: boolean,
+    isVoiceOnly: boolean = false
+  ): Promise<void> {
+    try {
+      this.callId = callId;
+
+      // Step 1: Create peer connection
+      this.peerConnection = new RTCPeerConnection({
+        iceServers: this.config.iceServers,
+        iceCandidatePoolSize: this.config.iceCandidatePoolSize ?? 10,
+      });
+
+      // Step 2: Get local media — mode-aware constraints
+      const constraints: MediaStreamConstraints = {
+        audio: true,
+        video: isVoiceOnly ? false : true,
+      };
+
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // Step 3: Explicitly enable audio tracks (some browsers start muted)
+      this.localStream.getAudioTracks().forEach((track) => {
+        track.enabled = true;
+      });
+
+      // Step 4: Add ALL tracks to peer connection BEFORE any offer is created
+      this.localStream.getTracks().forEach((track) => {
+        this.peerConnection!.addTrack(track, this.localStream!);
+      });
+
+      // Setup remote stream receiver
+      this.remoteStream = new MediaStream();
+      this.peerConnection.ontrack = (event) => {
+        event.streams[0].getTracks().forEach((track) => {
+          this.remoteStream!.addTrack(track);
+        });
+        this.onRemoteStream?.(this.remoteStream!);
       };
 
       // Handle ICE candidates
@@ -11,7 +108,6 @@
       this.peerConnection.onconnectionstatechange = () => {
         this.onConnectionStateChange?.(this.peerConnection?.connectionState);
       };
-
     } catch (error) {
       console.error('Error initializing call:', error);
       throw error;
@@ -28,7 +124,9 @@
     return offer;
   }
 
-  async createAnswer(offer: RTCSessionDescriptionInit): Promise<RTCSessionDescriptionInit> {
+  async createAnswer(
+    offer: RTCSessionDescriptionInit
+  ): Promise<RTCSessionDescriptionInit> {
     if (!this.peerConnection) {
       throw new Error('Peer connection not initialized');
     }
@@ -39,7 +137,9 @@
     return answer;
   }
 
-  async setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void> {
+  async setRemoteDescription(
+    description: RTCSessionDescriptionInit
+  ): Promise<void> {
     if (!this.peerConnection) {
       throw new Error('Peer connection not initialized');
     }
@@ -71,7 +171,7 @@
     if (!this.localStream) return false;
 
     const audioTracks = this.localStream.getAudioTracks();
-    audioTracks.forEach(track => {
+    audioTracks.forEach((track) => {
       track.enabled = enabled !== undefined ? enabled : !track.enabled;
     });
 
@@ -82,7 +182,7 @@
     if (!this.localStream) return false;
 
     const videoTracks = this.localStream.getVideoTracks();
-    videoTracks.forEach(track => {
+    videoTracks.forEach((track) => {
       track.enabled = enabled !== undefined ? enabled : !track.enabled;
     });
 
@@ -91,7 +191,7 @@
 
   endCall(): void {
     if (this.localStream) {
-      this.localStream.getTracks().forEach(track => track.stop());
+      this.localStream.getTracks().forEach((track) => track.stop());
     }
 
     if (this.peerConnection) {
@@ -111,11 +211,6 @@
   getRemoteStream(): MediaStream | null {
     return this.remoteStream;
   }
-
-  // Event handlers
-  onRemoteStream?: (stream: MediaStream) => void;
-  onIceCandidate?: (candidate: RTCIceCandidate) => void;
-  onConnectionStateChange?: (state: string | undefined) => void;
 }
 
 // Default ICE servers configuration
@@ -127,13 +222,17 @@ export const defaultWebRTCConfig: WebRTCConfig = {
     {
       urls: process.env.NEXT_PUBLIC_TURN_URL || 'turn:openrelay.metered.ca:80',
       username: process.env.NEXT_PUBLIC_TURN_USERNAME || 'openrelayproject',
-      credential: process.env.NEXT_PUBLIC_TURN_PASSWORD || 'openrelayproject'
+      credential:
+        process.env.NEXT_PUBLIC_TURN_PASSWORD || 'openrelayproject',
     },
     {
-      urls: process.env.NEXT_PUBLIC_TURN_URL_TLS || 'turn:openrelay.metered.ca:443?transport=tcp',
+      urls:
+        process.env.NEXT_PUBLIC_TURN_URL_TLS ||
+        'turn:openrelay.metered.ca:443?transport=tcp',
       username: process.env.NEXT_PUBLIC_TURN_USERNAME || 'openrelayproject',
-      credential: process.env.NEXT_PUBLIC_TURN_PASSWORD || 'openrelayproject'
-    }
+      credential:
+        process.env.NEXT_PUBLIC_TURN_PASSWORD || 'openrelayproject',
+    },
   ],
-  iceCandidatePoolSize: 10 // Pre-gathers ICE candidates to drastically speed up connection times
+  iceCandidatePoolSize: 10,
 };

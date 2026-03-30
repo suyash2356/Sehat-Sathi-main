@@ -19,8 +19,9 @@ export interface VideoCallState {
   callData: CallData | null;
   error: string | null;
   sessionStatus: 'loading' | 'active' | 'ended' | 'not_found';
-  isInitiator: boolean; // Added
+  isInitiator: boolean;
   remoteMuted: boolean;
+  mode: 'video' | 'voice';
 }
 
 export function useVideoCall() {
@@ -39,13 +40,13 @@ export function useVideoCall() {
     callData: null,
     error: null,
     sessionStatus: 'loading',
-    isInitiator: false, // Initial
-    remoteMuted: false
+    isInitiator: false,
+    remoteMuted: false,
+    mode: 'video',
   });
 
   const webrtcService = useRef<WebRTCService | null>(null);
   const signalingService = useRef<SignalingService | null>(null);
-  const iceCandidateBuffer = useRef<RTCIceCandidateInit[]>([]);
   const sessionIdRef = useRef<string | null>(null);
 
   // Initialize Call Logic
@@ -57,52 +58,67 @@ export function useVideoCall() {
     if (sessionIdRef.current === sessionId) return;
     sessionIdRef.current = sessionId;
 
-    console.log("Initializing Call Session:", sessionId);
+    console.log('Initializing Call Session:', sessionId);
 
-    // 1. Fetch Session Data
     const sessionRef = doc(db, 'callSessions', sessionId);
 
-    const unsubscribe = onSnapshot(sessionRef, async (snapshot) => {
-      if (!snapshot.exists()) {
-        setState(prev => ({ ...prev, sessionStatus: 'ended', error: 'Call session ended.' }));
-        // If session is gone, we should probably leave
-        handleEndCallCleanup();
-        return;
+    const unsubscribe = onSnapshot(
+      sessionRef,
+      async (snapshot) => {
+        if (!snapshot.exists()) {
+          setState((prev) => ({
+            ...prev,
+            sessionStatus: 'ended',
+            error: 'Call session ended.',
+          }));
+          handleEndCallCleanup();
+          return;
+        }
+
+        const sessionData = snapshot.data();
+
+        // Determine Role
+        const isDoctor = user.uid === sessionData.doctorId;
+        const isPatient = user.uid === sessionData.patientId;
+
+        if (!isDoctor && !isPatient) {
+          setState((prev) => ({
+            ...prev,
+            error: 'Unauthorized to join this call.',
+          }));
+          return;
+        }
+
+        const isInitiator = isDoctor; // Doctor is always initiator
+        const mode = (sessionData.mode as 'video' | 'voice') || 'video';
+
+        setState((prev) => ({
+          ...prev,
+          callData: { id: sessionId, ...sessionData } as CallData,
+          sessionStatus: 'active',
+          isInitiator,
+          mode,
+          remoteMuted: isInitiator
+            ? !!sessionData.receiverMuted
+            : !!sessionData.initiatorMuted,
+        }));
+
+        // Initialize WebRTC if not already done
+        if (!webrtcService.current) {
+          await startWebRTC(sessionId, isInitiator, mode);
+        }
+      },
+      (err) => {
+        console.error('Session snapshot error', err);
+        setState((prev) => ({
+          ...prev,
+          error: err?.message || 'Session listener error',
+        }));
+        if (err && (err as any).code === 'permission-denied') {
+          handleEndCallCleanup();
+        }
       }
-
-      const sessionData = snapshot.data();
-
-      // 2. Determine Role
-      const isDoctor = user.uid === sessionData.doctorId;
-      const isPatient = user.uid === sessionData.patientId;
-
-      if (!isDoctor && !isPatient) {
-        setState(prev => ({ ...prev, error: 'Unauthorized to join this call.' }));
-        return;
-      }
-
-      const isInitiator = isDoctor; // STRICT ROLE: Doctor is Initiator
-
-      setState(prev => ({
-        ...prev,
-        callData: { id: sessionId, ...sessionData } as any,
-        sessionStatus: 'active',
-        isInitiator, // Store it
-        remoteMuted: isInitiator ? !!sessionData.receiverMuted : !!sessionData.initiatorMuted
-      }));
-
-      // 3. Initialize WebRTC if not already done
-      if (!webrtcService.current) {
-        await startWebRTC(sessionId, isInitiator, sessionData.mode);
-      }
-    }, (err) => {
-      console.error('Session snapshot error', err);
-      setState(prev => ({ ...prev, error: err?.message || 'Session listener error' }));
-      // If permission denied, attempt to cleanup
-      if (err && err.code === 'permission-denied') {
-        handleEndCallCleanup();
-      }
-    });
+    );
 
     return () => {
       unsubscribe();
@@ -110,30 +126,35 @@ export function useVideoCall() {
     };
   }, [searchParams, user]);
 
-  const startWebRTC = async (sessionId: string, isInitiator: boolean, mode: string) => {
+  const startWebRTC = async (
+    sessionId: string,
+    isInitiator: boolean,
+    mode: 'video' | 'voice'
+  ) => {
     try {
-      setState(prev => ({ ...prev, isConnecting: true }));
+      setState((prev) => ({ ...prev, isConnecting: true }));
 
       signalingService.current = SignalingService.getInstance();
       webrtcService.current = new WebRTCService(defaultWebRTCConfig);
 
       // Setup WebRTC Listeners
       webrtcService.current.onRemoteStream = (stream) => {
-        setState(prev => ({ ...prev, remoteStream: stream }));
+        setState((prev) => ({ ...prev, remoteStream: stream }));
       };
 
-      webrtcService.current.onConnectionStateChange = (state) => {
-        if (state === 'connected') {
-          setState(prev => ({ ...prev, isConnected: true, isConnecting: false }));
-          toast({ title: "Connected", description: "Secure connection established." });
-
-          // Handle Voice Mode
-          if (mode === 'voice') {
-            webrtcService.current?.toggleVideo(false);
-            setState(prev => ({ ...prev, isVideoOff: true }));
-          }
-        } else if (state === 'failed' || state === 'disconnected') {
-          setState(prev => ({ ...prev, isConnected: false }));
+      webrtcService.current.onConnectionStateChange = (connState) => {
+        if (connState === 'connected') {
+          setState((prev) => ({
+            ...prev,
+            isConnected: true,
+            isConnecting: false,
+          }));
+          toast({
+            title: 'Connected',
+            description: 'Secure connection established.',
+          });
+        } else if (connState === 'failed' || connState === 'disconnected') {
+          setState((prev) => ({ ...prev, isConnected: false }));
         }
       };
 
@@ -141,14 +162,23 @@ export function useVideoCall() {
         signalingService.current?.sendIceCandidate(candidate);
       };
 
-      // Start Media
-      await webrtcService.current.initializeCall(sessionId, isInitiator, mode === 'voice');
-      setState(prev => ({ ...prev, localStream: webrtcService.current!.getLocalStream() }));
+      // Start Media — pass isVoiceOnly based on mode
+      const isVoiceOnly = mode === 'voice';
+      await webrtcService.current.initializeCall(
+        sessionId,
+        isInitiator,
+        isVoiceOnly
+      );
+      setState((prev) => ({
+        ...prev,
+        localStream: webrtcService.current!.getLocalStream(),
+        isVideoOff: isVoiceOnly,
+      }));
 
       // Join Signaling
       await signalingService.current.joinCall(
         sessionId,
-        user!.uid, // Safe due to useEffect check
+        user!.uid,
         async (offer) => {
           if (!isInitiator && webrtcService.current) {
             const answer = await webrtcService.current.createAnswer(offer);
@@ -166,29 +196,34 @@ export function useVideoCall() {
           }
         },
         () => {
-          // On Remote End
           handleEndCallCleanup();
         }
       );
 
-      // Verify Role Action
+      // Initiator creates offer
       if (isInitiator) {
-        // Clear previous stale signaling states to force a clean re-negotiation
+        // Clear stale signaling states
         try {
           await updateDoc(doc(db, 'callSessions', sessionId), {
             offer: null,
-            answer: null
+            answer: null,
+            initiatorMuted: false,
+            receiverMuted: false,
           });
         } catch (e) {
-          // Ignore failing update if doc was removed
+          // Ignore if doc was removed
         }
         const offer = await webrtcService.current.createOffer();
         await signalingService.current.sendOffer(offer);
       }
-
-    } catch (err: any) {
-      console.error("WebRTC Start Error:", err);
-      setState(prev => ({ ...prev, error: err.message, isConnecting: false }));
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'WebRTC initialization failed';
+      console.error('WebRTC Start Error:', err);
+      setState((prev) => ({
+        ...prev,
+        error: errMsg,
+        isConnecting: false,
+      }));
     }
   };
 
@@ -201,69 +236,72 @@ export function useVideoCall() {
 
   const handleEndCallCleanup = () => {
     cleanup();
-    setState(prev => ({ ...prev, isConnected: false, sessionStatus: 'ended' }));
-
-    // Redirect based on role (using fresh state ref if possible, or user object)
-    // We can rely on user object since it's in scope or from hook
-    // But better to use the last known callData content
+    setState((prev) => ({
+      ...prev,
+      isConnected: false,
+      sessionStatus: 'ended',
+    }));
   };
 
-  const endCall = async (_flag?: boolean) => {
-    // 1. Delete Session Doc (Signals end to everyone)
+  const endCall = async () => {
     if (sessionIdRef.current && state.callData) {
       try {
-        // Delete session
         await deleteDoc(doc(db, 'callSessions', sessionIdRef.current));
 
-        // Update appointment status
-        const apptRef = doc(db, 'appointments', state.callData.appointmentId);
+        const apptId = state.callData.appointmentId || sessionIdRef.current;
+        const apptRef = doc(db, 'appointments', apptId);
         const apptSnap = await getDoc(apptRef);
         const apptData = apptSnap.exists() ? apptSnap.data() : {};
 
-        // Ensure appointment retains patient details for history; if missing, try to populate from patients collection
-        let patientDetails = apptData?.patientDetails || state.callData?.patientDetails || null;
+        let patientDetails =
+          apptData?.patientDetails ||
+          state.callData?.patientDetails ||
+          null;
         if (!patientDetails && state.callData?.patientId) {
           try {
-            const patientSnap = await getDoc(doc(db, 'patients', state.callData.patientId));
+            const patientSnap = await getDoc(
+              doc(db, 'patients', state.callData.patientId)
+            );
             if (patientSnap.exists()) patientDetails = patientSnap.data();
           } catch (e) {
             // ignore
           }
         }
 
-        const updatePayload: any = {
+        const updatePayload: Record<string, unknown> = {
           status: 'completed',
           callStatus: 'ended',
-          completedAt: serverTimestamp()
+          completedAt: serverTimestamp(),
         };
         if (patientDetails) updatePayload.patientDetails = patientDetails;
 
         await updateDoc(apptRef, updatePayload);
       } catch (e) {
-        console.error("Error ending call session:", e);
+        console.error('Error ending call session:', e);
       }
     }
     handleEndCallCleanup();
 
-    // 2. Redirect
     if (state.callData?.doctorId === user?.uid) {
       router.push('/doctor/dashboard');
     } else {
-      router.push('/patient/dashboard');
+      router.push('/map');
     }
   };
 
   const toggleMute = async () => {
     if (webrtcService.current) {
       const isMuted = !webrtcService.current.toggleAudio();
-      setState(prev => ({ ...prev, isMuted }));
-      
+      setState((prev) => ({ ...prev, isMuted }));
+
       if (sessionIdRef.current) {
         try {
           await updateDoc(doc(db, 'callSessions', sessionIdRef.current), {
-            [state.isInitiator ? 'initiatorMuted' : 'receiverMuted']: isMuted
+            [state.isInitiator ? 'initiatorMuted' : 'receiverMuted']: isMuted,
           });
-        } catch (e) {}
+        } catch (e) {
+          // ignore
+        }
       }
     }
   };
@@ -271,15 +309,15 @@ export function useVideoCall() {
   const toggleVideo = () => {
     if (webrtcService.current) {
       const isVideoOff = !webrtcService.current.toggleVideo();
-      setState(prev => ({ ...prev, isVideoOff }));
+      setState((prev) => ({ ...prev, isVideoOff }));
     }
   };
 
   return {
     ...state,
     sessionId: sessionIdRef.current,
-    endCall, // Expose directly
+    endCall,
     toggleMute,
-    toggleVideo
+    toggleVideo,
   };
 }

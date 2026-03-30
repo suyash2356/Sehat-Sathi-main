@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogOut, Video, Calendar, FileText, Briefcase, Clock, Phone } from 'lucide-react';
+import { LogOut, Calendar, FileText, Briefcase, Clock, Video } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from "@/components/ui/input";
@@ -82,7 +82,6 @@ export default function PatientDashboardPage() {
     return `Starts in ${mins}m`;
   };
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [activeCallSession, setActiveCallSession] = useState<{id: string, mode: string} | null>(null);
 
   // Reschedule State
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
@@ -97,7 +96,6 @@ export default function PatientDashboardPage() {
 
     let unsubApp = () => { };
     let unsubRx = () => { };
-    let unsubSession = () => { };
 
     const init = async () => {
       // Role enforcement
@@ -145,21 +143,6 @@ export default function PatientDashboardPage() {
         }
       );
 
-      // Call session listener
-      unsubSession = onSnapshot(
-        query(collection(db, 'callSessions'), where('patientId', '==', user.uid)),
-        snap => {
-          let activeSession = null;
-          for (const d of snap.docs) {
-            const data = d.data();
-            if (data.status !== 'ended' && data.callStatus !== 'ended') {
-              activeSession = { id: d.id, mode: data.mode || 'video' };
-              break;
-            }
-          }
-          setActiveCallSession(activeSession);
-        }
-      );
     };
 
     init();
@@ -167,7 +150,6 @@ export default function PatientDashboardPage() {
     return () => {
       unsubApp();
       unsubRx();
-      unsubSession();
     };
   }, [db, user, loading, router]);
 
@@ -234,20 +216,7 @@ export default function PatientDashboardPage() {
           </Button>
         </div>
 
-        {activeCallSession && (
-          <div className="bg-red-500 text-white p-6 rounded flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              {activeCallSession.mode === 'voice' ? <Phone /> : <Video />}
-              <span className="font-bold">Doctor started the {activeCallSession.mode === 'voice' ? 'Voice Call' : 'Video Call'}</span>
-            </div>
-            <Button
-              className="bg-white text-red-600"
-              onClick={() => router.push(`/video-call?sessionId=${activeCallSession.id}`)}
-            >
-              JOIN CALL
-            </Button>
-          </div>
-        )}
+
 
         {/* Appointments */}
         <Card>
