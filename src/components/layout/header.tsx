@@ -277,6 +277,7 @@ export function Header() {
                     <Link href="/health-guide" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Dashboard</Link>
                     <Link href="/chatbot" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Chatbot</Link>
                     <Link href="/map" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Map</Link>
+                    <Link href="/patient/identify" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Identify Disease</Link>
                     <Link href="/services" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">Services</Link>
                     <Link href="/about" onClick={() => setIsOpen(false)} className="block py-2 text-lg font-medium hover:text-primary">About</Link>
                   </div>
