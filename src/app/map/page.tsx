@@ -31,7 +31,8 @@ import {
   User as UserIcon,
   BotMessageSquare,
   Globe,
-  ClipboardList
+  ClipboardList,
+  Building2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { MyRequestsTab } from '@/components/patient/MyRequestsTab';
@@ -71,9 +72,15 @@ interface Doctor {
   state?: string;
   district?: string;
   village?: string;
-  contact?: string; // Add contact property
+  contact?: string;
   verificationLevel?: number;
   type?: string; // 'Doctor' or 'Government'
+  profilePicture?: string;
+  fullName?: string;
+  qualification?: string;
+  consultationFee?: number;
+  experience?: number | string;
+  bio?: string;
 }
 
 // Helper to convert Doctor to the shape used by the UI (combining doctor & hospital info)
@@ -84,6 +91,7 @@ interface MapItem extends Doctor {
 }
 
 import { locationData, governmentHospitals } from '@/lib/location-data';
+import { DoctorDetailCard } from '@/components/map/DoctorDetailCard';
 
 // ... (imports remain same)
 
@@ -106,6 +114,7 @@ export default function MapPage() {
   const [selectedDoctor, setSelectedDoctor] = useState<MapItem | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const bookingForm = useForm<z.infer<typeof bookingSchema>>({
     resolver: zodResolver(bookingSchema),
@@ -151,6 +160,7 @@ export default function MapPage() {
           fetchedDoctors.push({
             id: doc.id,
             name: data.fullName || data.name || 'Unknown Doctor', // Support both naming conventions
+            fullName: data.fullName || data.name || 'Unknown Doctor',
             email: data.email,
             hospitalLocation: data.hospitalLocation || { lat: fallbackLat, lng: fallbackLng },
             lat: data.hospitalLocation?.lat || fallbackLat,
@@ -165,7 +175,12 @@ export default function MapPage() {
             district: data.district,
             village: data.village,
             contact: data.contact || "N/A",
-            type: 'Doctor' // Explicitly mark as Doctor
+            type: 'Doctor',
+            profilePicture: data.profilePicture || '',
+            qualification: data.qualification || '',
+            consultationFee: data.consultationFee || 0,
+            experience: data.experience || '',
+            bio: data.bio || '',
           });
         });
 
@@ -192,63 +207,62 @@ export default function MapPage() {
   }, [toast]);
 
 
-  // Filter Logic
-  const filteredDoctors = useMemo(() => {
+  // Availability check helper — determines if a doctor is currently available
+  function isDoctorAvailable(doc: MapItem): boolean {
+    if (doc.type === 'Government') return true; // Government hospitals always available
+    if (!doc.isVerified) return false;
+
+    const availability = doc.availability;
+    if (!availability) return false;
+    if ('dates' in availability && Array.isArray((availability as any).dates)) return false;
+
     const now = new Date();
-    // Get full day name e.g. "Monday"
     const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' });
     const currentHour = now.getHours().toString().padStart(2, '0');
     const currentMinute = now.getMinutes().toString().padStart(2, '0');
     const currentTime = `${currentHour}:${currentMinute}`;
 
+    const availabilityAny = availability as any;
+    const todaySchedule = availabilityAny[currentDay];
+    if (!todaySchedule || !todaySchedule.isOpen) return false;
+    if (currentTime < todaySchedule.start || currentTime > todaySchedule.end) return false;
+
+    return true;
+  }
+
+  // Filter Logic — filters by location + search query but shows ALL matching doctors (available + unavailable)
+  const filteredDoctors = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
     return doctors.filter(doc => {
-      // Verification check
+      // Verification check (unverified non-government doctors are hidden entirely)
       if (!doc.isVerified && doc.type !== 'Government') return false;
 
-      // Location filtering
+      // Location dropdown filtering
       if (selectedState && selectedState !== 'all' && doc.state !== selectedState) return false;
       if (selectedDistrict && selectedDistrict !== 'all' && doc.district !== selectedDistrict) return false;
       if (selectedVillage && selectedVillage !== 'all' && doc.village !== selectedVillage) return false;
 
-      // Availability Check
-      if (doc.type === 'Government') {
-        return true; // Government hospitals open 24/7 or logic not applied
-      }
+      // Search query filtering (matches doctor name, hospital name, village, specialization)
+      if (query) {
+        const searchableFields = [
+          doc.name,
+          doc.fullName,
+          doc.hospitalName,
+          doc.village,
+          doc.specialization,
+          doc.district,
+          doc.address,
+          doc.hospitalAddress,
+        ].filter(Boolean).map(f => (f as string).toLowerCase());
 
-      // Check for new availability structure
-      const availability = doc.availability;
-      if (!availability) {
-        // Decide policy: If no schedule set, is currently invisible?
-        // User request: "Visible... ONLY for that period".
-        // Use strict mode: if no schedule, hidden.
-        return false;
-      }
-
-      // Handle legacy array structure (backwards compatibility if needed, but strict mode preferred)
-      // If it has 'dates' array, it's the old structure (which didn't have specific times per day usually or was just mocked)
-      // We'll treat old structure as "hidden" to force update, or "visible" if simple. 
-      // Let's assume strict logic as requested.
-      if (Array.isArray(availability.dates)) {
-        return false; // Old data format, force doctor to save schedule
-      }
-
-      // Use type assertion to handle the Union type for indexing
-      const availabilityAny = availability as any;
-      const todaySchedule = availabilityAny[currentDay];
-
-      if (!todaySchedule || !todaySchedule.isOpen) {
-        return false; // Closed today
-      }
-
-      // Time Range Check
-      // Format "HH:MM" comparable lexicographically
-      if (currentTime < todaySchedule.start || currentTime > todaySchedule.end) {
-        return false; // Closed right now
+        const matchesSearch = searchableFields.some(field => field.includes(query));
+        if (!matchesSearch) return false;
       }
 
       return true;
     });
-  }, [doctors, selectedState, selectedDistrict, selectedVillage]);
+  }, [doctors, selectedState, selectedDistrict, selectedVillage, searchQuery]);
 
   // Extract unique locations for dropdowns based on STATIC DATA
   const availableStates = Object.keys(locationData);
@@ -388,6 +402,26 @@ export default function MapPage() {
         {/* Desktop sidebar */}
         <div className="col-span-1 p-4 bg-gray-100 dark:bg-gray-800 overflow-y-auto hidden md:block relative z-30">
           <h2 className="text-xl font-bold mb-4">Find a Doctor</h2>
+
+          {/* Search Bar */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search doctor, hospital, village..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white dark:bg-gray-700"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
           <div className="space-y-4">
             {/* State Filter */}
             <Select value={selectedState} onValueChange={setSelectedState}>
@@ -420,17 +454,49 @@ export default function MapPage() {
             <h3 className="font-bold">Doctors Found ({filteredDoctors.length})</h3>
             {loadingDoctors ? <p>Loading...</p> : (
               <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                {filteredDoctors.map(doc => (
-                  <li key={doc.id} onClick={() => setSelectedDoctor(doc)} className={`p-2 rounded-md cursor-pointer ${selectedDoctor?.id === doc.id ? 'bg-blue-200 dark:bg-blue-800' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                    <div className="flex items-center gap-1">
-                      <p className="font-semibold">{doc.name}</p>
-                      {doc.verificationLevel === 3 && (
-                        <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{doc.specialization} - {doc.hospitalName}</p>
-                  </li>
-                ))}
+                {filteredDoctors.map(doc => {
+                  const available = isDoctorAvailable(doc);
+                  return (
+                    <li
+                      key={doc.id}
+                      onClick={() => { if (available) setSelectedDoctor(doc); }}
+                      className={`p-2 rounded-md transition-all ${
+                        !available
+                          ? 'opacity-40 cursor-not-allowed blur-[0.5px]'
+                          : selectedDoctor?.id === doc.id
+                            ? 'bg-blue-200 dark:bg-blue-800 cursor-pointer'
+                            : 'hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
+                      }`}
+                      title={!available ? 'Currently unavailable' : ''}
+                    >
+                      <div className="flex items-center gap-2">
+                        {doc.type !== 'Government' && doc.profilePicture ? (
+                          <img src={doc.profilePicture} alt={doc.name} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                        ) : doc.type === 'Government' ? (
+                          <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                            <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0 text-sm font-bold text-gray-600 dark:text-gray-300">
+                            {doc.name.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <p className="font-semibold truncate">{doc.name}</p>
+                            {doc.verificationLevel === 3 && (
+                              <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50 shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{doc.specialization} - {doc.hospitalName}</p>
+                        </div>
+                        {!available && (
+                          <span className="text-[10px] text-red-500 font-medium shrink-0">Offline</span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -451,18 +517,34 @@ export default function MapPage() {
               <InfoWindow position={{ lat: selectedDoctor.lat, lng: selectedDoctor.lng }} onCloseClick={() => setSelectedDoctor(null)}>
                 <Card className="max-w-sm border-none shadow-none text-black">
                   <div className="p-2">
-                    <div className="flex items-center gap-1">
-                      <h3 className="font-bold text-lg">{selectedDoctor.name}</h3>
-                      {selectedDoctor.verificationLevel === 3 && (
-                        <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
+                    <div className="flex items-start gap-3">
+                      {/* Profile picture in InfoWindow */}
+                      {selectedDoctor.type !== 'Government' && selectedDoctor.profilePicture ? (
+                        <img src={selectedDoctor.profilePicture} alt={selectedDoctor.name} className="h-12 w-12 rounded-full object-cover shrink-0" />
+                      ) : selectedDoctor.type === 'Government' ? (
+                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                          <Building2 className="h-6 w-6 text-blue-600" />
+                        </div>
+                      ) : (
+                        <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center shrink-0 text-lg font-bold text-gray-600">
+                          {selectedDoctor.name.charAt(0).toUpperCase()}
+                        </div>
                       )}
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <h3 className="font-bold text-lg">{selectedDoctor.name}</h3>
+                          {selectedDoctor.verificationLevel === 3 && (
+                            <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
+                          )}
+                        </div>
+                        <p className="text-sm font-semibold">{selectedDoctor.specialization}</p>
+                        <p className="text-sm">{selectedDoctor.hospitalName}</p>
+                        <p className="text-sm text-gray-600">{selectedDoctor.address}</p>
+                        {selectedDoctor.availability && ('timeSlots' in selectedDoctor.availability) && (selectedDoctor.availability as any).timeSlots?.length ? (
+                          <p className="text-xs text-green-600 mt-1">Has availability today</p>
+                        ) : null}
+                      </div>
                     </div>
-                    <p className="text-sm font-semibold">{selectedDoctor.specialization}</p>
-                    <p className="text-sm">{selectedDoctor.hospitalName}</p>
-                    <p className="text-sm text-gray-600">{selectedDoctor.address}</p>
-                    {selectedDoctor.availability && ('timeSlots' in selectedDoctor.availability) && (selectedDoctor.availability as any).timeSlots?.length ? (
-                      <p className="text-xs text-green-600 mt-1">Has availability today</p>
-                    ) : null}
                   </div>
                 </Card>
               </InfoWindow>}
@@ -480,6 +562,25 @@ export default function MapPage() {
               <Button variant="ghost" size="sm" onClick={() => setMobileFiltersOpen(false)}>Close</Button>
             </div>
             <div className="space-y-4">
+              {/* Mobile Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search doctor, hospital, village..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
               <Select value={selectedState} onValueChange={setSelectedState}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Select State" /></SelectTrigger>
                 <SelectContent>
@@ -491,12 +592,44 @@ export default function MapPage() {
               <div className="mt-2">
                 <h3 className="font-bold">Doctors Found ({filteredDoctors.length})</h3>
                 <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                  {filteredDoctors.map(doc => (
-                    <li key={doc.id} onClick={() => { setSelectedDoctor(doc); setMobileFiltersOpen(false); }} className={`p-2 rounded-md cursor-pointer ${selectedDoctor?.id === doc.id ? 'bg-blue-200 dark:bg-blue-800' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                      <p className="font-semibold">{doc.name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{doc.specialization}</p>
-                    </li>
-                  ))}
+                  {filteredDoctors.map(doc => {
+                    const available = isDoctorAvailable(doc);
+                    return (
+                      <li
+                        key={doc.id}
+                        onClick={() => { if (available) { setSelectedDoctor(doc); setMobileFiltersOpen(false); } }}
+                        className={`p-2 rounded-md transition-all ${
+                          !available
+                            ? 'opacity-40 cursor-not-allowed blur-[0.5px]'
+                            : selectedDoctor?.id === doc.id
+                              ? 'bg-blue-200 dark:bg-blue-800 cursor-pointer'
+                              : 'hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
+                        }`}
+                        title={!available ? 'Currently unavailable' : ''}
+                      >
+                        <div className="flex items-center gap-2">
+                          {doc.type !== 'Government' && doc.profilePicture ? (
+                            <img src={doc.profilePicture} alt={doc.name} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                          ) : doc.type === 'Government' ? (
+                            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                              <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0 text-sm font-bold text-gray-600 dark:text-gray-300">
+                              {doc.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold truncate">{doc.name}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{doc.specialization}</p>
+                          </div>
+                          {!available && (
+                            <span className="text-[10px] text-red-500 font-medium shrink-0">Offline</span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </div>
@@ -505,7 +638,12 @@ export default function MapPage() {
       )}
 
       <div className="w-full p-4 sm:p-6 bg-white dark:bg-gray-900 border-t relative z-30">
-        <Card className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 px-4 max-w-7xl mx-auto">
+          {/* Left Column: Doctor / Hospital Detail Card */}
+          <DoctorDetailCard selectedDoctor={selectedDoctor} allDoctors={doctors} />
+
+          {/* Right Column: Booking Form */}
+          <Card className="rounded-xl border shadow-sm">
           <CardHeader>
             <CardTitle>Book Appointment</CardTitle>
             {selectedDoctor ?
@@ -616,6 +754,7 @@ export default function MapPage() {
             </Form>
           </CardContent>
         </Card>
+        </div>
       </div>
         </TabsContent>
 
