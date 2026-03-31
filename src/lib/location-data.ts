@@ -1,381 +1,168 @@
-export const locationData = {
-    "Andaman and Nicobar Islands": { "Nicobar": [], "North and Middle Andaman": [], "South Andaman": [] },
-    "Andhra Pradesh": { "Anantapur": [], "Chittoor": [], "East Godavari": [], "Guntur": [], "Krishna": [], "Kurnool": [], "Prakasam": [], "Srikakulam": [], "Sri Potti Sriramulu Nellore": [], "Visakhapatnam": [], "Vizianagaram": [], "West Godavari": [], "YSR Kadapa": [] },
-    "Arunachal Pradesh": { "Tawang": [], "West Kameng": [], "East Kameng": [], "Papum Pare": [], "Kurung Kumey": [], "Kra Daadi": [], "Lower Subansiri": [], "Upper Subansiri": [], "West Siang": [], "East Siang": [], "Siang": [], "Upper Siang": [], "Lower Siang": [], "Lower Dibang Valley": [], "Dibang Valley": [], "Anjaw": [], "Lohit": [], "Namsai": [], "Changlang": [], "Tirap": [], "Longding": [] },
-    "Assam": { "Baksa": [], "Barpeta": [], "Biswanath": [], "Bongaigaon": [], "Cachar": [], "Charaideo": [], "Chirang": [], "Darrang": [], "Dhemaji": [], "Dhubri": [], "Dibrugarh": [], "Dima Hasao": [], "Goalpara": [], "Golaghat": [], "Hailakandi": [], "Hojai": [], "Jorhat": [], "Kamrup": [], "Kamrup Metropolitan": [], "Karbi Anglong": [], "Karimganj": [], "Kokrajhar": [], "Lakhimpur": [], "Majuli": [], "Morigaon": [], "Nagaon": [], "Nalbari": [], "Sivasagar": [], "Sonitpur": [], "South Salmara-Mankachar": [], "Tinsukia": [], "Udalguri": [], "West Karbi Anglong": [] },
-    "Bihar": { "Araria": [], "Arwal": [], "Aurangabad": [], "Banka": [], "Begusarai": [], "Bhagalpur": [], "Bhojpur": [], "Buxar": [], "Darbhanga": [], "East Champaran": [], "Gaya": [], "Gopalganj": [], "Jamui": [], "Jehanabad": [], "Kaimur": [], "Katihar": [], "Khagaria": [], "Kishanganj": [], "Lakhisarai": [], "Madhepura": [], "Madhubani": [], "Munger": [], "Muzaffarpur": [], "Nalanda": [], "Nawada": [], "Patna": [], "Purnia": [], "Rohtas": [], "Saharsa": [], "Samastipur": [], "Saran": [], "Sheikhpura": [], "Sheohar": [], "Sitamarhi": [], "Siwan": [], "Supaul": [], "Vaishali": [], "West Champaran": [] },
-    "Chandigarh": { "Chandigarh": [] },
-    "Chhattisgarh": { "Balod": [], "Baloda Bazar": [], "Balrampur": [], "Bastar": [], "Bemetara": [], "Bijapur": [], "Bilaspur": [], "Dantewada": [], "Dhamtari": [], "Durg": [], "Gariaband": [], "Janjgir-Champa": [], "Jashpur": [], "Kabeerdham": [], "Kanker": [], "Kondagaon": [], "Korba": [], "Koriya": [], "Mahasamund": [], "Mungeli": [], "Narayanpur": [], "Raigarh": [], "Raipur": [], "Rajnandgaon": [], "Sukma": [], "Surajpur": [], "Surguja": [] },
-    "Dadra and Nagar Haveli and Daman and Diu": { "Dadra and Nagar Haveli": [], "Daman": [], "Diu": [] },
-    "Delhi": {
-        "New Delhi": ["Connaught Place", "Chanakyapuri", "Vasant Kunj", "Hauz Khas"],
-        "North Delhi": ["Civil Lines", "Model Town", "Pitampura", "Rohini"],
-        "South Delhi": ["Saket", "Kalkaji", "Defence Colony", "Greater Kailash"],
-        "Central Delhi": [], "East Delhi": [], "North East Delhi": [], "North West Delhi": [], "South East Delhi": [], "South West Delhi": [], "West Delhi": [], "Shahdara": []
-    },
-    "Goa": { "North Goa": [], "South Goa": [] },
-    "Gujarat": { "Ahmedabad": ["Bopal", "Sanand", "Daskroi", "Viramgam", "Dholka"], "Amreli": ["Savar Kundla", "Rajula", "Dhari", "Lathi", "Babra"], "Anand": ["Borsad", "Petlad", "Umreth", "Sojitra", "Tarapur"], "Aravalli": ["Modasa", "Bayad", "Bhiloda", "Dhansura", "Malpur"], "Banaskantha": ["Palanpur", "Deesa", "Tharad", "Dhanera", "Vav"], "Bharuch": ["Ankleshwar", "Jambusar", "Vagra", "Amod", "Hansot"], "Bhavnagar": ["Palitana", "Talaja", "Mahuva", "Gariadhar", "Sihor"], "Botad": ["Gadhada", "Barvala", "Ranpur", "Botad Rural", "Ningala"], "Chhota Udaipur": ["Bodeli", "Sankheda", "Pavi Jetpur", "Nasvadi", "Kawant"], "Dahod": ["Zalod", "Devgadh Baria", "Garbada", "Fatepura", "Limkheda"], "Dang": ["Ahwa", "Waghai", "Subir", "Saputara", "Khatal"], "Devbhoomi Dwarka": ["Jamkalyanpur", "Khambhalia", "Bhanvad", "Okhamandal", "Dwarka"], "Gandhinagar": ["Dehgam", "Kalol", "Mansa", "Pethapur", "Adalaj"], "Gir Somnath": ["Veraval", "Kodinar", "Una", "Sutrapada", "Talala"], "Jamnagar": ["Dhrol", "Jodiya", "Kalavad", "Jamjodhpur", "Lalpur"], "Junagadh": ["Manavadar", "Visavadar", "Keshod", "Mangrol", "Malia"], "Kheda": ["Nadiad", "Kapadvanj", "Thasra", "Balasinor", "Matar"], "Kutch": ["Bhuj", "Gandhidham", "Rapar", "Mandvi", "Anjar"], "Mahisagar": ["Lunawada", "Santrampur", "Kadana", "Balasinor", "Virpur"], "Mehsana": ["Visnagar", "Kadi", "Unjha", "Becharaji", "Vadnagar"], "Morbi": ["Halvad", "Wankaner", "Maliya", "Tankara", "Jodiya"], "Narmada": ["Rajpipla", "Gudeshwar", "Nandod", "Tilakwada", "Dediapada"], "Navsari": ["Jalalpore", "Gandevi", "Chikhli", "Vansda", "Maroli"], "Panchmahal": ["Godhra", "Halol", "Kalol", "Shehera", "Morwa Hadaf"], "Patan": ["Siddhpur", "Chanasma", "Radhanpur", "Harij", "Sami"], "Porbandar": ["Ranavav", "Kutiyana", "Advana", "Bokhira", "Madhavpur"], "Rajkot": ["Gondal", "Jetpur", "Morbi", "Wankaner", "Dhoraji"], "Sabarkantha": ["Himatnagar", "Idar", "Prantij", "Talod", "Vadali"], "Surat": ["Bardoli", "Mandvi", "Mangrol", "Kamrej", "Olpad"], "Surendranagar": ["Dhrangadhra", "Limbdi", "Wadhwan", "Halvad", "Lakhtar"], "Tapi": ["Vyara", "Songadh", "Valod", "Uchchhal", "Nizar"], "Vadodara": ["Padra", "Karjan", "Savli", "Vaghodia", "Shinor"], "Valsad": ["Pardi", "Umbergaon", "Dharampur", "Kaprada", "Vapi"] },
-    "Haryana": { "Ambala": [], "Bhiwani": [], "Charkhi Dadri": [], "Faridabad": [], "Fatehabad": [], "Gurugram": [], "Hisar": [], "Jhajjar": [], "Jind": [], "Kaithal": [], "Karnal": [], "Kurukshetra": [], "Mahendragarh": [], "Nuh": [], "Palwal": [], "Panchkula": [], "Panipat": [], "Rewari": [], "Rohtak": [], "Sirsa": [], "Sonipat": [], "Yamunanagar": [] },
-    "Himachal Pradesh": { "Bilaspur": [], "Chamba": [], "Hamirpur": [], "Kangra": [], "Kinnaur": [], "Kullu": [], "Lahaul and Spiti": [], "Mandi": [], "Shimla": [], "Sirmaur": [], "Solan": [], "Una": [] },
-    "Jammu and Kashmir": { "Anantnag": [], "Bandipora": [], "Baramulla": [], "Budgam": [], "Doda": [], "Ganderbal": [], "Jammu": [], "Kathua": [], "Kishtwar": [], "Kulgam": [], "Kupwara": [], "Poonch": [], "Pulwama": [], "Rajouri": [], "Ramban": [], "Reasi": [], "Samba": [], "Shopian": [], "Srinagar": [], "Udhampur": [] },
-    "Jharkhand": { "Bokaro": [], "Chatra": [], "Deoghar": [], "Dhanbad": [], "Dumka": [], "East Singhbhum": [], "Garhwa": [], "Giridih": [], "Godda": [], "Gumla": [], "Hazaribagh": [], "Jamtara": [], "Khunti": [], "Koderma": [], "Latehar": [], "Lohardaga": [], "Pakur": [], "Palamu": [], "Ramgarh": [], "Ranchi": [], "Sahibganj": [], "Seraikela Kharsawan": [], "Simdega": [], "West Singhbhum": [] },
-    "Karnataka": {
-        "Bangalore Urban": ["Indiranagar", "Koramangala", "Jayanagar", "Whitefield", "Electronic City"],
-        "Mysore": ["Gokulam", "Saraswathipuram", "Kuvempunagar", "Siddhartha Layout"],
-        "Hubli": ["Vidya Nagar", "Keshwapur", "Gokul Road", "Navanagar"],
-        "Bagalkot": [], "Ballari": [], "Belagavi": [], "Bengaluru Rural": [], "Bidar": [], "Chamarajanagar": [], "Chikkaballapur": [], "Chikkamagaluru": [], "Chitradurga": [], "Dakshina Kannada": [], "Davanagere": [], "Dharwad": [], "Gadag": [], "Hassan": [], "Haveri": [], "Kalaburagi": [], "Kodagu": [], "Kolar": [], "Koppal": [], "Mandya": [], "Mysuru": [], "Raichur": [], "Ramanagara": [], "Shivamogga": [], "Tumakuru": [], "Udupi": [], "Uttara Kannada": [], "Vijayapura": [], "Yadgir": []
-    },
-    "Kerala": { "Alappuzha": [], "Ernakulam": [], "Idukki": [], "Kannur": [], "Kasaragod": [], "Kollam": [], "Kottayam": [], "Kozhikode": [], "Malappuram": [], "Palakkad": [], "Pathanamthitta": [], "Thiruvananthapuram": [], "Thrissur": [], "Wayanad": [] },
-    "Ladakh": { "Kargil": [], "Leh": [] },
-    "Lakshadweep": { "Lakshadweep": [] },
-    "Madhya Pradesh": { "Agar Malwa": [], "Alirajpur": [], "Anuppur": [], "Ashoknagar": [], "Balaghat": [], "Barwani": [], "Betul": [], "Bhind": [], "Bhopal": [], "Burhanpur": [], "Chhatarpur": [], "Chhindwara": [], "Damoh": [], "Datia": [], "Dewas": [], "Dhar": [], "Dindori": [], "Guna": [], "Gwalior": [], "Harda": [], "Hoshangabad": [], "Indore": [], "Jabalpur": [], "Jhabua": [], "Katni": [], "Khandwa": [], "Khargone": [], "Mandla": [], "Mandsaur": [], "Morena": [], "Narsinghpur": [], "Neemuch": [], "Panna": [], "Raisen": [], "Rajgarh": [], "Ratlam": [], "Rewa": [], "Sagar": [], "Satna": [], "Sehore": [], "Seoni": [], "Shahdol": [], "Shajapur": [], "Sheopur": [], "Shivpuri": [], "Sidhi": [], "Singrauli": [], "Tikamgarh": [], "Ujjain": [], "Umaria": [], "Vidisha": [] },
-    "Maharashtra": {
-        "Mumbai": ["Colaba", "Dadar", "Bandra", "Andheri", "Juhu"],
-        "Pune": ["Shivajinagar", "Kothrud", "Hadapsar", "Viman Nagar", "Hinjewadi"],
-        "Nagpur": ["Sitabuldi", "Dharampeth", "Sadar", "Mahal", "Itwari"],
-        "Nashik": ["Panchavati", "Satpur", "Nashik Road", "Indira Nagar"],
-        "Aurangabad": ["Cidco", "Garkheda", "Samarth Nagar", "Shahganj"],
-        "Ahmednagar": ["Kopargaon", "Sangamner", "Shrirampur", "Rahuri", "Nagar"],
-        "Akola": ["Akot", "Balapur", "Murtizapur", "Patur", "Telhara"],
-        "Amravati": ["Achalpur", "Anjangaon", "Chandur", "Daryapur", "Morshi"],
-        "Beed": ["Ambejogai", "Ashti", "Georai", "Majalgaon", "Parli"],
-        "Bhandara": ["Tumsar", "Pauni", "Adyal", "Mohadi", "Lakhandur"],
-        "Buldhana": ["Chikhli", "Khamgaon", "Malkapur", "Mehkar", "Shegaon"],
-        "Chandrapur": ["Ballarpur", "Bhadravati", "Bramhapuri", "Rajura", "Warora"],
-        "Dhule": ["Shirpur", "Sindkheda", "Sakri", "Dondaicha", "Shirud"],
-        "Gadchiroli": ["Aheri", "Armori", "Chamorshi", "Desaiganj", "Kurkheda"],
-        "Gondia": ["Tirora", "Amgaon", "Arjuni Morgaon", "Goregaon", "Salekasa"],
-        "Hingoli": ["Basmath", "Kalamnuri", "Sengaon", "Aundha Nagnath", "Shirad Shahapur"],
-        "Jalgaon": ["Amalner", "Bhusawal", "Chalisgaon", "Chopda", "Pachora"],
-        "Jalna": ["Ambad", "Bhokardan", "Partur", "Ghansawangi", "Mantha"],
-        "Kolhapur": ["Ichalkaranji", "Jaysingpur", "Hatkanangale", "Shirol", "Karvir"],
-        "Latur": ["Ausa", "Chakur", "Nilanga", "Renapur", "Udgir"],
-        "Mumbai City": ["Fort", "Malabar Hill", "Worli", "Sion", "Byculla"],
-        "Mumbai Suburban": ["Borivali", "Goregaon", "Malad", "Mulund", "Kurla"],
-        "Nanded": ["Deglur", "Kinwat", "Loha", "Mukhed", "Bhokar"],
-        "Nandurbar": ["Shahada", "Shirpur", "Akkalkuwa", "Navapur", "Talode"],
-        "Osmanabad": ["Tuljapur", "Kalamb", "Omerga", "Bhum", "Paranda"],
-        "Palghar": ["Vasai", "Virar", "Dahanu", "Boisar", "Safale"],
-        "Parbhani": ["Gangakhed", "Jintur", "Pathri", "Purna", "Sailu"],
-        "Raigad": ["Alibag", "Panvel", "Karjat", "Khopoli", "Uran"],
-        "Ratnagiri": ["Chiplun", "Dapoli", "Guhagar", "Khed", "Rajapur"],
-        "Sangli": ["Miraj", "Tasgaon", "Islampur", "Vita", "Palus"],
-        "Satara": ["Karad", "Wai", "Phaltan", "Mahabaleshwar", "Koregaon"],
-        "Sindhudurg": ["Kankavli", "Kudal", "Malvan", "Sawantwadi", "Vengurla"],
-        "Solapur": ["Barshi", "Pandharpur", "Akkalkot", "Karmala", "Sangola"],
-        "Thane": ["Kalyan", "Dombivli", "Ulhasnagar", "Bhiwandi", "Ambernath"],
-        "Wardha": ["Arvi", "Deoli", "Hinganghat", "Pulgaon", "Samudrapur"],
-        "Washim": ["Karanja", "Malegaon", "Mangrulpir", "Manora", "Risod"],
-        "Yavatmal": ["Darwha", "Digras", "Pusad", "Umarkhed", "Wani"]
-    },
-    "Manipur": { "Bishnupur": [], "Chandel": [], "Churachandpur": [], "Imphal East": [], "Imphal West": [], "Jiribam": [], "Kakching": [], "Kamjong": [], "Kangpokpi": [], "Noney": [], "Pherzawl": [], "Senapati": [], "Tamenglong": [], "Tengnoupal": [], "Thoubal": [], "Ukhrul": [] },
-    "Meghalaya": { "East Garo Hills": [], "East Jaintia Hills": [], "East Khasi Hills": [], "North Garo Hills": [], "Ri Bhoi": [], "South Garo Hills": [], "South West Garo Hills": [], "South West Khasi Hills": [], "West Garo Hills": [], "West Jaintia Hills": [], "West Khasi Hills": [] },
-    "Mizoram": { "Aizawl": [], "Champhai": [], "Hnahthial": [], "Khawzawl": [], "Kolasib": [], "Lawngtlai": [], "Lunglei": [], "Mamit": [], "Saiha": [], "Saitual": [], "Serchhip": [] },
-    "Nagaland": { "Chumoukedima": [], "Dimapur": [], "Kiphire": [], "Kohima": [], "Longleng": [], "Mokokchung": [], "Mon": [], "Niuland": [], "Noklak": [], "Peren": [], "Phek": [], "Shamator": [], "Tseminyu": [], "Tuensang": [], "Wokha": [], "Zunheboto": [] },
-    "Odisha": { "Angul": [], "Balangir": [], "Balasore": [], "Bargarh": [], "Bhadrak": [], "Boudh": [], "Cuttack": [], "Deogarh": [], "Dhenkanal": [], "Gajapati": [], "Ganjam": [], "Jagatsinghpur": [], "Jajpur": [], "Jharsuguda": [], "Kalahandi": [], "Kandhamal": [], "Kendrapara": [], "Kendujhar": [], "Khordha": [], "Koraput": [], "Malkangiri": [], "Mayurbhanj": [], "Nabarangpur": [], "Nayagarh": [], "Nuapada": [], "Puri": [], "Rayagada": [], "Sambalpur": [], "Subarnapur": [], "Sundargarh": [] },
-    "Puducherry": { "Karaikal": [], "Mahe": [], "Puducherry": [], "Yanam": [] },
-    "Punjab": { "Amritsar": [], "Barnala": [], "Bathinda": [], "Faridkot": [], "Fatehgarh Sahib": [], "Fazilka": [], "Ferozepur": [], "Gurdaspur": [], "Hoshiarpur": [], "Jalandhar": [], "Kapurthala": [], "Ludhiana": [], "Mansa": [], "Moga": [], "Muktsar": [], "Nawanshahr": [], "Pathankot": [], "Patiala": [], "Rupnagar": [], "Sangrur": [], "SAS Nagar": [], "Tarn Taran": [] },
-    "Rajasthan": { "Ajmer": ["Beawar", "Kishangarh", "Pushkar", "Nasirabad", "Kekri"], "Alwar": ["Bhiwadi", "Neemrana", "Rajgarh", "Behror", "Tijara"], "Banswara": ["Kushalgarh", "Ghatol", "Garhi", "Bagidora", "Anandpuri"], "Baran": ["Anta", "Chhabra", "Mangrol", "Atru", "Kishanganj"], "Barmer": ["Balotra", "Siwana", "Gudamalani", "Chohtan", "Pachpadra"], "Bharatpur": ["Kumher", "Nadbai", "Weer", "Bayana", "Kaman"], "Bhilwara": ["Shahpura", "Mandalgarh", "Asind", "Jahazpur", "Kotri"], "Bikaner": ["Nokha", "Deshnoke", "Dungargarh", "Lunkaransar", "Kolayat"], "Bundi": ["Keshoraipatan", "Nainwa", "Indragarh", "Lakheri", "Hindoli"], "Chittorgarh": ["Nimbahera", "Rawatbhata", "Begun", "Kapasan", "Bari Sadri"], "Churu": ["Sujangarh", "Ratangarh", "Sardarshahar", "Rajgarh", "Taranagar"], "Dausa": ["Bandikui", "Lalsot", "Sikrai", "Mahwa", "Baswa"], "Dholpur": ["Bari", "Rajakhera", "Baseri", "Sepau", "Saipau"], "Dungarpur": ["Sagwara", "Simalwara", "Galiakot", "Aspur", "Bichhiwara"], "Hanumangarh": ["Nohar", "Bhadra", "Pilibanga", "Rawatsar", "Sangaria"], "Jaipur": ["Chomu", "Sanganer", "Kotputli", "Phulera", "Shahpura"], "Jaisalmer": ["Pokaran", "Fatehgarh", "Bhaniana", "Sankra", "Ramgarh"], "Jalore": ["Bhinmal", "Sanchore", "Sayla", "Ahore", "Raniwara"], "Jhalawar": ["Jhalrapatan", "Pirawa", "Bhawani Mandi", "Aklera", "Manohar Thana"], "Jhunjhunu": ["Chirawa", "Pilani", "Khetri", "Nawalgarh", "Gudha Gorji"], "Jodhpur": ["Phalodi", "Piparcity", "Bilara", "Osian", "Bhopalgarh"], "Karauli": ["Hindaun", "Todabhim", "Sapotra", "Mandrayal", "Nandauti"], "Kota": ["Ramganj Mandi", "Sangod", "Itawa", "Pipalda", "Digod"], "Nagaur": ["Makrana", "Kuchaman", "Didwana", "Ladnun", "Merta"], "Pali": ["Sojat", "Marwar Junction", "Bali", "Sumerpur", "Desuri"], "Pratapgarh": ["Dhariyawad", "Chhoti Sadri", "Arnod", "Peepalkhoont", "Dalot"], "Rajsamand": ["Nathdwara", "Amet", "Kumbhalgarh", "Bhim", "Railmagra"], "Sawai Madhopur": ["Gangapur City", "Bamanwas", "Bonli", "Khandar", "Malarna Dungar"], "Sikar": ["Fatehpur", "Laxmangarh", "Khandela", "Reengus", "Sri Madhopur"], "Sirohi": ["Abu Road", "Mount Abu", "Pindwara", "Sheoganj", "Reodar"], "Sri Ganganagar": ["Suratgarh", "Anoopgarh", "Raisinghnagar", "Padampur", "Karanpur"], "Tonk": ["Niwai", "Malpura", "Deoli", "Uniara", "Peeplu"], "Udaipur": ["Salumbar", "Kherwara", "Mavli", "Gogunda", "Kotra"] },
-    "Sikkim": { "East Sikkim": [], "North Sikkim": [], "South Sikkim": [], "West Sikkim": [], "Pakyong": [], "Soreng": [] },
-    "Tamil Nadu": { "Ariyalur": ["Jayankondam", "Sendurai", "Udayarpalayam", "Andimadam", "Thirumanur"], "Chengalpattu": ["Tambaram", "Pallavaram", "Madurantakam", "Cheyyur", "Thiruporur"], "Chennai": ["Anna Nagar", "T Nagar", "Adyar", "Mylapore", "Velachery"], "Coimbatore": ["Pollachi", "Mettupalayam", "Valparai", "Kinathukadavu", "Sulur"], "Cuddalore": ["Chidambaram", "Panruti", "Virudhachalam", "Nellikuppam", "Mangalampet"], "Dharmapuri": ["Palacode", "Pennagaram", "Harur", "Karimangalam", "Nallampalli"], "Dindigul": ["Palani", "Kodaikanal", "Oddanchatram", "Vedasandur", "Nilakottai"], "Erode": ["Bhavani", "Gobichettipalayam", "Sathyamangalam", "Perundurai", "Anthiyur"], "Kallakurichi": ["Chinnasalem", "Sankarapuram", "Tirukkoyilur", "Ulundurpet", "Rishivandiyam"], "Kanchipuram": ["Sriperumbudur", "Uthiramerur", "Kundrathur", "Walajabad", "Somangalam"], "Kanyakumari": ["Nagercoil", "Padmanabhapuram", "Colachel", "Kuzhithurai", "Thuckalay"], "Karur": ["Kulithalai", "Aravakurichi", "Krishnarayapuram", "Kadavur", "Pugalur"], "Krishnagiri": ["Hosur", "Denkanikottai", "Pochampalli", "Uthangarai", "Bargur"], "Madurai": ["Melur", "Usilampatti", "Thirumangalam", "Vadipatti", "Peraiyur"], "Mayiladuthurai": ["Sirkazhi", "Tharangambadi", "Kuthalam", "Sembanarkoil", "Vaitheeswarankoil"], "Nagapattinam": ["Vedaranyam", "Kilvelur", "Thirukuvalai", "Velankanni", "Sikkal"], "Namakkal": ["Tiruchengode", "Rasipuram", "Paramathi Velur", "Kolli Hills", "Sendamangalam"], "Nilgiris": ["Ooty", "Coonoor", "Kotagiri", "Gudalur", "Pandalur"], "Perambalur": ["Veppanthattai", "Alathur", "Kunnam", "Erumiyur", "Padalur"], "Pudukkottai": ["Aranthangi", "Iluppur", "Alangudi", "Gandarvakottai", "Thirumayam"], "Ramanathapuram": ["Paramakudi", "Rameswaram", "Kilakarai", "Kamuthi", "Mudukulathur"], "Ranipet": ["Arakkonam", "Arcot", "Walajapet", "Nemili", "Sholingur"], "Salem": ["Attur", "Mettur", "Edappadi", "Sankari", "Omalur"], "Sivaganga": ["Karaikudi", "Devakottai", "Tiruppattur", "Manamadurai", "Ilayangudi"], "Tenkasi": ["Sankarankoil", "Kadayanallur", "Shencottai", "Puliyangudi", "Alangulam"], "Thanjavur": ["Kumbakonam", "Pattukkottai", "Orathanadu", "Papanasam", "Peravurani"], "Theni": ["Periyakulam", "Bodhasanur", "Uthamapalayam", "Andipatti", "Chinnamanoor"], "Thoothukudi": ["Kovilpatti", "Tiruchendur", "Vilathikulam", "Srivaikuntam", "Ottapidaram"], "Tiruchirappalli": ["Srirangam", "Manapparai", "Lalgudi", "Musiri", "Thuraiyur"], "Tirunelveli": ["Ambasamudram", "Nanguneri", "Radhapuram", "Cheranmahadevi", "Palayamkottai"], "Tirupathur": ["Vaniyambadi", "Ambur", "Natrampalli", "Jolarpet", "Kandili"], "Tiruppur": ["Dharapuram", "Kangeyam", "Udumalaipettai", "Palladam", "Avanashi"], "Tiruvallur": ["Ponneri", "Gummidipoondi", "Tiruttani", "Avadi", "Poonamallee"], "Tiruvannamalai": ["Arani", "Cheyyar", "Polur", "Vandavasi", "Chengam"], "Tiruvarur": ["Mannargudi", "Thiruthuraipoondi", "Needamangalam", "Valangaiman", "Kudavasal"], "Vellore": ["Gudiyatham", "Katpadi", "Pernambut", "Anaicut", "KV Kuppam"], "Viluppuram": ["Tindivanam", "Gingee", "Vanur", "Vikravandi", "Marakkanam"], "Virudhunagar": ["Sivakasi", "Aruppukottai", "Rajapalayam", "Srivilliputhur", "Sattur"] },
-    "Telangana": { "Adilabad": [], "Bhadradri Kothagudem": [], "Hyderabad": [], "Jagtial": [], "Jangaon": [], "Jayashankar Bhupalpally": [], "Jogulamba Gadwal": [], "Kamareddy": [], "Karimnagar": [], "Khammam": [], "Komaram Bheem Asifabad": [], "Mahabubabad": [], "Mahabubnagar": [], "Mancherial": [], "Medak": [], "Medchal-Malkajgiri": [], "Mulugu": [], "Nagarkurnool": [], "Nalgonda": [], "Narayanpet": [], "Nirmal": [], "Nizamabad": [], "Peddapalli": [], "Rajanna Sircilla": [], "Rangareddy": [], "Sangareddy": [], "Siddipet": [], "Suryapet": [], "Vikarabad": [], "Wanaparthy": [], "Warangal Rural": [], "Warangal Urban": [], "Yadadri Bhuvanagiri": [] },
-    "Tripura": { "Dhalai": [], "Gomati": [], "Khowai": [], "North Tripura": [], "Sepahijala": [], "South Tripura": [], "Unakoti": [], "West Tripura": [] },
-    "Uttar Pradesh": {
-        "Lucknow": ["Hazratganj", "Gomti Nagar", "Aliganj", "Indira Nagar"],
-        "Kanpur": ["Civil Lines", "Swaroop Nagar", "Kakadeo", "Kidwai Nagar"],
-        "Varanasi": ["Lanka", "Bhelupur", "Sigra", "Mahmoorganj"],
-        "Agra": ["Fatehabad", "Kheragarh", "Kiraoli", "Bah", "Etmadpur"], "Aligarh": ["Atrauli", "Iglas", "Khair", "Koil", "Gabhana"], "Ambedkar Nagar": ["Akbarpur", "Jalalpur", "Tanda", "Alapur", "Bhititi"], "Amethi": ["Gauriganj", "Musafirkhana", "Tiloi", "Amethi Town", "Shukul Bazar"], "Amroha": ["Dhanaura", "Hasanpur", "Gajraula", "Naugawan Sadat", "Joya"], "Auraiya": ["Bidhuna", "Ajitmal", "Phaphund", "Dibiyapur", "Atsu"], "Ayodhya": ["Bikapur", "Milkipur", "Rudauli", "Sohawal", "Gosainganj"], "Azamgarh": ["Burhanpur", "Lalganj", "Mehnagar", "Nizamabad", "Phulpur"], "Baghpat": ["Baraut", "Khekra", "Binauli", "Chhaprauli", "Pilana"], "Bahraich": ["Kaiserganj", "Mahasi", "Nanpara", "Payagpur", "Fakharpur"], "Ballia": ["Bansdih", "Belthara Road", "Rasra", "Sikandarpur", "Bairia"], "Balrampur": ["Tulsipur", "Utraula", "Pachpedwa", "Gainsari", "Rehra Bazar"], "Banda": ["Atarra", "Baberu", "Naraini", "Tindwari", "Oran"], "Barabanki": ["Fatehpur", "Haidergarh", "Ramnagar", "Safdarganj", "Dariyabad"], "Bareilly": ["Aonla", "Baheri", "Faridpur", "Mirganj", "Nawabganj"], "Basti": ["Bhanpur", "Harraiya", "Rudhauli", "Basti Sadar", "Saltaua"], "Bhadohi": ["Gyanpur", "Aurai", "Khamaria", "Gopiganj", "Bhadohi Nagar"], "Bijnor": ["Chandpur", "Dhampur", "Nagina", "Najibabad", "Seohara"], "Budaun": ["Bilsi", "Bisauli", "Dataganj", "Sahaswan", "Ujhani"], "Bulandshahr": ["Anupshahr", "Dibai", "Khurja", "Shikarpur", "Siyana"], "Chandauli": ["Chakia", "Sakaldiha", "Mughalsarai", "Niyamatabad", "Syedraja"], "Chitrakoot": ["Karwi", "Mau", "Rajapur", "Pahari", "Manikpur"], "Deoria": ["Barhaj", "Bhatpar Rani", "Rudrapur", "Salempur", "Baitalpur"], "Etah": ["Aliganj", "Jalesar", "Awagarh", "Sakeet", "Nidhauli Kalan"], "Etawah": ["Bharthana", "Chakarnagar", "Jaswantnagar", "Saifai", "Khardia"], "Farrukhabad": ["Amritpur", "Kaimganj", "Mohammadabad", "Shamsabad", "Kamalganj"], "Fatehpur": ["Bindki", "Khaga", "Amajhi", "Hussain Ganj", "Dhata"], "Firozabad": ["Jasrana", "Shikohabad", "Sirsaganj", "Tundla", "Makhanpur"], "Gautam Buddha Nagar": ["Dadri", "Jewar", "Noida", "Greater Noida", "Dankaur"], "Ghaziabad": ["Loni", "Modinagar", "Muradnagar", "Dasna", "Pilkhuwa"], "Ghazipur": ["Jamania", "Mohammadabad", "Saidpur", "Zamania", "Sadat"], "Gonda": ["Kargil", "Mankapur", "Tarabganj", "Nawabganj", "Khargupur"], "Gorakhpur": ["Bansgaon", "Campierganj", "Chauri Chaura", "Khajni", "Sahjanwa"], "Hamirpur": ["Gohand", "Kurara", "Maudaha", "Rath", "Sumerpur"], "Hapur": ["Dhaulana", "Garhmukteshwar", "Pilkhuwa", "Babugarh", "Simbaoli"], "Hardoi": ["Bilgram", "Pihani", "Sandila", "Shahabad", "Sandi"], "Hathras": ["Sadabad", "Sikandra Rao", "Sasni", "Mursan", "Hasayan"], "Jalaun": ["Kalpi", "Konch", "Madhogarh", "Orai", "Jalaun Town"], "Jaunpur": ["Badlapur", "Kerakat", "Machhlishahr", "Mariahu", "Shahganj"], "Jhansi": ["Garautha", "Mauranipur", "Moth", "Samthar", "Baragaon"], "Kannauj": ["Chhibramau", "Tirwa", "Talgram", "Gursahaiganj", "Saurikh"], "Kanpur Dehat": ["Akbarpur", "Bhognipur", "Derapur", "Rasulabad", "Sikandara"], "Kanpur Nagar": ["Bilhaur", "Ghatampur", "Bithoor", "Choubepur", "Narwal"], "Kasganj": ["Patiyali", "Sahawar", "Amanpur", "Ganj Dundwara", "Bhargain"], "Kaushambi": ["Chail", "Manjhanpur", "Sirathu", "Karari", "Bharwari"], "Kheri": ["Dhaurahara", "Gola Gokarannath", "Mohammadi", "Nighasan", "Palikalan"], "Kushinagar": ["Hata", "Kasaya", "Padrauna", "Tamkuhi Raj", "Fazilnagar"], "Lalitpur": ["Mahroni", "Talbehat", "Pali", "Jakhaura", "Birdha"], "Maharajganj": ["Anandnagar", "Nichlaul", "Nautanwa", "Pharenda", "Ghughli"], "Mahoba": ["Charkhari", "Kulpahar", "Panhari", "Kabrai", "Kharela"], "Mainpuri": ["Bhongaon", "Karhal", "Kishni", "Kurawali", "Ghio"], "Mathura": ["Chhata", "Gवर्धन", "Kosikalan", "Mant", "Vrindavan"], "Mau": ["Ghosi", "Madhuban", "Muhammadabad", "Kopaganj", "Adari"], "Meerut": ["Mawana", "Sardhana", "Hastinapur", "Kithaur", "Phalawda"], "Mirzapur": ["Chunar", "Lalganj", "Madihan", "Ahraura", "Kachhwa"], "Moradabad": ["Bilari", "Kanth", "Thakurdwara", "Bhojpur", "Kundarki"], "Muzaffarnagar": ["Budhana", "Jansath", "Khatauli", "Purkazi", "Sisauli"], "Pilibhit": ["Barkhera", "Bilsanda", "Bisalpur", "Puranpur", "Neoria"], "Pratapgarh": ["Kunda", "Lalganj", "Patti", "Raniganj", "Bela"], "Prayagraj": ["Bara", "Handia", "Karchhana", "Meja", "Phulpur"], "Raebareli": ["Dalmau", "Lalganj", "Maharajganj", "Salon", "Unchahar"], "Rampur": ["Bilaspur", "Milak", "Shahabad", "Suar", "Tanda"], "Saharanpur": ["Behat", "Deoband", "Nakur", "Rampur Maniharan", "Gangoh"], "Sambhal": ["Chandausi", "Gunnaur", "Babrala", "Bahjoi", "Gawan"], "Sant Kabir Nagar": ["Dhanghata", "Khalilabad", "Mehdawal", "Maghar", "Bakhira"], "Shahjahanpur": ["Jalalabad", "Powayan", "Puwayan", "Tilhar", "Katara"], "Shamli": ["Kairana", "Thana Bhawan", "Jhinjhana", "Un", "Kandhla"], "Shravasti": ["Bhinga", "Ikauna", "Jamunaha", "Sirsiya", "Hariharpur"], "Siddharthnagar": ["Bansi", "Domariyaganj", "Itwa", "Naugarh", "Shohratgarh"], "Sitapur": ["Biswan", "Laharpur", "Mahmudabad", "Misrikh", "Sidhauli"], "Sonbhadra": ["Dudhi", "Ghorawal", "Robertsganj", "Chopan", "Obra"], "Sultanpur": ["Jaisinghpur", "Kadipur", "Lumbhua", "Dostpur", "Koeripur"], "Unnao": ["Bighapur", "Hasanganj", "Purwa", "Safipur", "Bangarmau"]
-    },
-    "Uttarakhand": { "Almora": [], "Bageshwar": [], "Chamoli": [], "Champawat": [], "Dehradun": [], "Haridwar": [], "Nainital": [], "Pauri Garhwal": [], "Pithoragarh": [], "Rudraprayag": [], "Tehri Garhwal": [], "Udham Singh Nagar": [], "Uttarkashi": [] },
-    "West Bengal": { "Alipurduar": [], "Bankura": [], "Birbhum": [], "Cooch Behar": [], "Dakshin Dinajpur": [], "Darjeeling": [], "Hooghly": [], "Howrah": [], "Jalpaiguri": [], "Jhargram": [], "Kalimpong": [], "Kolkata": [], "Malda": [], "Murshidabad": [], "Nadia": [], "North 24 Parganas": [], "Paschim Bardhaman": [], "Paschim Medinipur": [], "Purba Bardhaman": [], "Purba Medinipur": [], "Purulia": [], "South 24 Parganas": [], "Uttar Dinajpur": [] }
+export const locationData: { [key: string]: { [key: string]: string[] } } = {
+  Maharashtra: {
+    Ahmednagar: ["Ahmednagar City", "Sangamner", "Kopargaon", "Shrirampur", "Rahuri"],
+    Akola: ["Akola City", "Akot", "Balapur", "Patur", "Telhara"],
+    Amravati: ["Amravati City", "Achalpur", "Anjangaon Surji", "Daryapur", "Warud"],
+    Aurangabad: ["Aurangabad City", "Paithan", "Gangapur", "Vaijapur", "Kannad"],
+    Beed: ["Beed City", "Ambejogai", "Majalgaon", "Parli", "Georai"],
+    Bhandara: ["Bhandara City", "Tumsar", "Pauni", "Sakoli", "Lakhani"],
+    Buldhana: ["Buldhana City", "Chikhli", "Mehekar", "Malkapur", "Shegaon"],
+    Chandrapur: ["Chandrapur City", "Ballarpur", "Warora", "Bhadravati", "Rajura"],
+    Dhule: ["Dhule City", "Shirpur", "Sakri", "Sindkhede", "Dondaicha"],
+    Gadchiroli: ["Gadchiroli City", "Aheri", "Armori", "Chamorshi", "Desaiganj"],
+    Gondia: ["Gondia City", "Tirora", "Arjuni Morgaon", "Amgaon", "Deori"],
+    Hingoli: ["Hingoli City", "Basmath", "Kalamnuri", "Sengao", "Aundha Nagnath"],
+    Jalgaon: ["Jalgaon City", "Bhusawal", "Amalner", "Chalisgaon", "Pachora"],
+    Jalna: ["Jalna City", "Ambad", "Partur", "Bhokardan", "Jafrabad"],
+    Kolhapur: ["Kolhapur City", "Ichalkaranji", "Jaysingpur", "Radhanagari", "Kagal"],
+    Latur: ["Latur City", "Udgir", "Ahmedpur", "Nilanga", "Ausa"],
+    Mumbai: ["Colaba", "Dadar", "Andheri", "Bandra", "Borivali"],
+    Nagpur: ["Nagpur City", "Kamptee", "Umred", "Katol", "Ramtek"],
+    Nanded: ["Nanded City", "Deglur", "Loha", "Hadgaon", "Mukhed"],
+    Nandurbar: ["Nandurbar City", "Shahada", "Taloda", "Akkalkuwa", "Nawapur"],
+    Nashik: ["Nashik City", "Malegaon", "Manmad", "Yeola", "Sinnar", "Indira Nagar"],
+    Osmanabad: ["Osmanabad City", "Tuljapur", "Omerga", "Kalamb", "Paranda"],
+    Palghar: ["Palghar City", "Vasai-Virar", "Dahanu", "Boisar", "Jawhar"],
+    Parbhani: ["Parbhani City", "Selu", "Jintur", "Gangakhed", "Purna"],
+    Pune: ["Pune City", "Pimpri-Chinchwad", "Baramati", "Lonavala", "Junnar", "Shivajinagar"],
+    Raigad: ["Panvel", "Alibaug", "Mahad", "Karjat", "Roha"],
+    Ratnagiri: ["Ratnagiri City", "Chiplun", "Khed", "Guhagar", "Lanja"],
+    Sangli: ["Sangli City", "Miraj", "Islampur", "Vita", "Tasgaon"],
+    Satara: ["Satara City", "Karad", "Phaltan", "Wai", "Koregaon"],
+    Sindhudurg: ["Sawantwadi", "Malvan", "Kankavli", "Kudal", "Vengurla"],
+    Solapur: ["Solapur City", "Barshi", "Pandharpur", "Akluj", "Sangola"],
+    Thane: ["Thane City", "Kalyan-Dombivli", "Navi Mumbai", "Ulhasnagar", "Bhiwandi", "Mira-Bhayandar"],
+    Wardha: ["Wardha City", "Hinganghat", "Arvi", "Pulgaon", "Wardha"],
+    Washim: ["Washim City", "Risod", "Karanja", "Mangrulpir", "Malegaon"],
+    Yavatmal: ["Yavatmal City", "Pusad", "Digras", "Wani", "Umarkhed"]
+  },
+  Delhi: {
+    "Central Delhi": ["Connaught Place", "Karol Bagh", "Pahar Ganj", "Chandni Chowk", "Daryaganj"],
+    "New Delhi": ["Chanakyapuri", "Lodhi Colony", "Gole Market", "Sarojini Nagar", "Laxmibai Nagar"],
+    "South Delhi": ["Saket", "Hauz Khas", "Mehrauli", "Greater Kailash", "Malviya Nagar"],
+    "North Delhi": ["Civil Lines", "Model Town", "Saraswati Vihar", "Rohini", "Kamla Nagar"],
+    "East Delhi": ["Preet Vihar", "Mayur Vihar", "Laxmi Nagar", "Shahdara", "Gandhi Nagar"],
+    "West Delhi": ["Rajouri Garden", "Punjabi Bagh", "Janakpuri", "Vikaspuri", "Dwarka"],
+    "North East Delhi": ["Seelampur", "Shahdara", "Yamuna Vihar", "Nand Nagri", "Dilshad Garden"],
+    "North West Delhi": ["Rohini", "Pitampura", "Saraswati Vihar", "Adarsh Nagar", "Kanjhawala"],
+    "South East Delhi": ["Okhla", "Kalkaji", "Lajpat Nagar", "Defence Colony", "Nehru Place"],
+    "South West Delhi": ["Dwarka", "Vasant Kunj", "Najafgarh", "Delhi Cantt", "R.K. Puram"]
+  },
+  Karnataka: {
+    "Bangalore Urban": ["Indiranagar", "Koramangala", "Jayanagar", "Whitefield", "Electronic City", "M.G. Road"],
+    "Bangalore Rural": ["Devanahalli", "Doddaballapur", "Hosakote", "Nelamangala", "Magadi"],
+    Mysore: ["Mysore City", "Nanjangud", "Hunsur", "T. Narasipura", "K.R. Nagar"],
+    Belgaum: ["Belgaum City", "Chikodi", "Gokak", "Athani", "Bailhongal"],
+    Gulbarga: ["Gulbarga City", "Afzalpur", "Aland", "Chincholi", "Sedam"],
+    Mangalore: ["Mangalore City", "Ullal", "Mulki", "Bantwal", "Puttur"],
+    Hubli: ["Hubli-Dharwad", "Kalghatgi", "Navalgund", "Kundgol", "Alnavar"],
+    Dharwad: ["Dharwad City", "Hubli", "Kalghatgi", "Navalgund", "Kundgol"]
+  },
+  Haryana: {
+    Gurgaon: ["Gurgaon City", "Sohna", "Pataudi", "Manesar", "Farrukhnagar"],
+    Faridabad: ["Faridabad City", "Ballabgarh", "Tigaon", "Faridabad", "Sector 15"],
+    Panipat: ["Panipat City", "Samalkha", "Israna", "Madlauda", "Bapoli"],
+    Ambala: ["Ambala City", "Ambala Cantt", "Naraingarh", "Shahzadpur", "Saha"],
+    Rohtak: ["Rohtak City", "Meham", "Sampla", "Kalanaur", "Lakhman Majra"]
+  },
+  Telangana: {
+    Hyderabad: ["Hyderabad City", "Secunderabad", "Gachibowli", "Madhapur", "Jubilee Hills", "Banjara Hills"],
+    Rangareddy: ["Cyberabad", "Kukatpally", "LB Nagar", "Rajendranagar", "Quthbullapur"],
+    Warangal: ["Warangal City", "Hanamkonda", "Kazipet", "Jangaon", "Mahabubabad"],
+    Nizamabad: ["Nizamabad City", "Armoor", "Bodhan", "Kamareddy", "Banswada"],
+    Karimnagar: ["Karimnagar City", "Jagtial", "Sircilla", "Koratla", "Metpally"]
+  }
 };
 
 export const governmentHospitals = [
-    // ─────────── GOVERNMENT HOSPITALS ───────────
     {
         id: "gov-1",
         name: "AIIMS Delhi",
         specialization: "Multi-specialty",
         hospitalName: "All India Institute of Medical Sciences",
-        hospitalAddress: "Sri Aurobindo Marg, Ansari Nagar, New Delhi - 110029",
+        hospitalAddress: "Ansari Nagar, New Delhi - 110029",
         lat: 28.5672,
         lng: 77.2100,
         state: "Delhi",
-        district: "New Delhi",
-        village: "Hauz Khas",
+        district: "South Delhi",
+        village: "Saket",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 0,
+        contact: "011-26588500",
+        bio: "India's premier public medical research university and hospital providing accessible high-quality tertiary care.",
+        notableDoctors: [
+            { name: "Dr. Randeep Guleria", role: "Pulmonologist" },
+            { name: "Dr. Aarti Vij", role: "Hospital Administration" },
+            { name: "Dr. Nikhil Tandon", role: "Endocrinology" }
+        ]
     },
     {
         id: "gov-2",
-        name: "KEM Hospital",
-        specialization: "General Medicine",
-        hospitalName: "King Edward Memorial Hospital",
-        hospitalAddress: "Acharya Donde Marg, Parel, Mumbai - 400012",
-        lat: 19.0025,
-        lng: 72.8416,
-        state: "Maharashtra",
-        district: "Mumbai",
-        village: "Dadar",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-3",
-        name: "Sassoon General Hospital",
-        specialization: "Multi-specialty",
-        hospitalName: "Sassoon General Hospital",
-        hospitalAddress: "Sassoon Road, Pune - 411001",
-        lat: 18.5204,
-        lng: 73.8567,
-        state: "Maharashtra",
-        district: "Pune",
-        village: "Shivajinagar",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-4",
         name: "Safdarjung Hospital",
         specialization: "Multi-specialty",
-        hospitalName: "Safdarjung Hospital",
-        hospitalAddress: "Ansari Nagar West, Ring Road, New Delhi - 110029",
+        hospitalName: "Vardhman Mahavir Medical College & Safdarjung Hospital",
+        hospitalAddress: "Ansari Nagar East, New Delhi - 110029",
         lat: 28.5685,
         lng: 77.2065,
         state: "Delhi",
-        district: "New Delhi",
+        district: "South Delhi",
         village: "Hauz Khas",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 0,
+        contact: "011-26730000",
+        bio: "One of the largest government hospitals in India, offering specialized departments and a 2,000+ bed facility.",
+        notableDoctors: [
+            { name: "Dr. S.V. Arya", role: "Medical Superintendent" },
+            { name: "Dr. Balvinder Singh", role: "Orthopedics" }
+        ]
     },
     {
-        id: "gov-5",
-        name: "JIPMER Puducherry",
+        id: "gov-3",
+        name: "Ram Manohar Lohia Hospital",
         specialization: "Multi-specialty",
-        hospitalName: "Jawaharlal Institute of Postgraduate Medical Education & Research",
-        hospitalAddress: "Dhanvantari Nagar, Puducherry - 605006",
-        lat: 11.9575,
-        lng: 79.7971,
-        state: "Puducherry",
-        district: "Puducherry",
-        village: "Puducherry",
+        hospitalName: "Dr. Ram Manohar Lohia Hospital",
+        hospitalAddress: "Baba Kharak Singh Marg, New Delhi - 110001",
+        lat: 28.6256,
+        lng: 77.2024,
+        state: "Delhi",
+        district: "Central Delhi",
+        village: "Connaught Place",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 0,
+        contact: "011-23365525",
+        bio: "A renowned central government hospital providing emergency services and specialized care in the heart of Delhi.",
+        notableDoctors: [
+            { name: "Dr. Nandini Duggal", role: "Microbiology" },
+            { name: "Dr. Ajay Shukla", role: "Surgery" }
+        ]
     },
     {
-        id: "gov-6",
-        name: "CMC Vellore",
+        id: "gov-4",
+        name: "Lok Nayak Hospital",
         specialization: "Multi-specialty",
-        hospitalName: "Christian Medical College",
-        hospitalAddress: "Ida Scudder Road, Vellore, Tamil Nadu - 632004",
-        lat: 12.9249,
-        lng: 79.1338,
-        state: "Tamil Nadu",
-        district: "Vellore",
-        village: "Gudiyatham",
+        hospitalName: "Lok Nayak Jai Prakash Narayan Hospital",
+        hospitalAddress: "Jawaharlal Nehru Marg, New Delhi - 110002",
+        lat: 28.6360,
+        lng: 77.2340,
+        state: "Delhi",
+        district: "Central Delhi",
+        village: "Chandni Chowk",
         isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-7",
-        name: "PGIMER Chandigarh",
-        specialization: "Multi-specialty",
-        hospitalName: "Post Graduate Institute of Medical Education & Research",
-        hospitalAddress: "Sector 12, Chandigarh - 160012",
-        lat: 30.7642,
-        lng: 76.7759,
-        state: "Chandigarh",
-        district: "Chandigarh",
-        village: "Chandigarh",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-8",
-        name: "NIMHANS Bangalore",
-        specialization: "Neurosciences & Mental Health",
-        hospitalName: "National Institute of Mental Health and Neurosciences",
-        hospitalAddress: "Hosur Road, Lakkasandra, Bengaluru - 560029",
-        lat: 12.9430,
-        lng: 77.5965,
-        state: "Karnataka",
-        district: "Bangalore Urban",
-        village: "Jayanagar",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-9",
-        name: "Govt. Medical College Thiruvananthapuram",
-        specialization: "Multi-specialty",
-        hospitalName: "Government Medical College Hospital",
-        hospitalAddress: "Medical College PO, Thiruvananthapuram - 695011",
-        lat: 8.5138,
-        lng: 76.9460,
-        state: "Kerala",
-        district: "Thiruvananthapuram",
-        village: "Thiruvananthapuram",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-10",
-        name: "King George's Medical University",
-        specialization: "Multi-specialty",
-        hospitalName: "King George's Medical University",
-        hospitalAddress: "Shah Mina Road, Chowk, Lucknow - 226003",
-        lat: 26.8580,
-        lng: 80.9176,
-        state: "Uttar Pradesh",
-        district: "Lucknow",
-        village: "Hazratganj",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-11",
-        name: "AIIMS Bhopal",
-        specialization: "Multi-specialty",
-        hospitalName: "All India Institute of Medical Sciences Bhopal",
-        hospitalAddress: "Saket Nagar, Bhopal - 462020",
-        lat: 23.2063,
-        lng: 77.4394,
-        state: "Madhya Pradesh",
-        district: "Bhopal",
-        village: "Bhopal",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-12",
-        name: "Osmania General Hospital",
-        specialization: "Multi-specialty",
-        hospitalName: "Osmania General Hospital",
-        hospitalAddress: "Afzal Gunj, Hyderabad - 500012",
-        lat: 17.3752,
-        lng: 78.4744,
-        state: "Telangana",
-        district: "Hyderabad",
-        village: "Hyderabad",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-13",
-        name: "SMS Hospital Jaipur",
-        specialization: "Multi-specialty",
-        hospitalName: "Sawai Man Singh Hospital",
-        hospitalAddress: "JLN Marg, Jaipur - 302004",
-        lat: 26.8936,
-        lng: 75.8063,
-        state: "Rajasthan",
-        district: "Jaipur",
-        village: "Sanganer",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-14",
-        name: "Seth GS Medical College & KEM Hospital",
-        specialization: "Cardiology",
-        hospitalName: "Seth GS Medical College",
-        hospitalAddress: "Acharya Donde Marg, Parel, Mumbai - 400012",
-        lat: 19.0033,
-        lng: 72.8411,
-        state: "Maharashtra",
-        district: "Mumbai",
-        village: "Dadar",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "gov-15",
-        name: "Rajiv Gandhi Govt. General Hospital",
-        specialization: "Multi-specialty",
-        hospitalName: "Rajiv Gandhi Government General Hospital",
-        hospitalAddress: "Park Town, Chennai - 600003",
-        lat: 13.0878,
-        lng: 80.2785,
-        state: "Tamil Nadu",
-        district: "Chennai",
-        village: "Anna Nagar",
-        isVerified: true,
-        type: "Government"
-    },
-    // ─────────── PRIVATE HOSPITALS ───────────
-    {
-        id: "pvt-1",
-        name: "Apollo Hospital Chennai",
-        specialization: "Multi-specialty",
-        hospitalName: "Apollo Hospitals",
-        hospitalAddress: "21, Greams Lane, Off Greams Road, Chennai - 600006",
-        lat: 13.0604,
-        lng: 80.2505,
-        state: "Tamil Nadu",
-        district: "Chennai",
-        village: "T Nagar",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "pvt-2",
-        name: "Fortis Hospital Gurugram",
-        specialization: "Multi-specialty",
-        hospitalName: "Fortis Memorial Research Institute",
-        hospitalAddress: "Sector 44, Gurugram - 122002",
-        lat: 28.4399,
-        lng: 77.0355,
-        state: "Haryana",
-        district: "Gurugram",
-        village: "Gurugram",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "pvt-3",
-        name: "Medanta Hospital Gurugram",
-        specialization: "Multi-specialty",
-        hospitalName: "Medanta — The Medicity",
-        hospitalAddress: "CH Baktawar Singh Road, Sector 38, Gurugram - 122001",
-        lat: 28.4407,
-        lng: 77.0416,
-        state: "Haryana",
-        district: "Gurugram",
-        village: "Gurugram",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "pvt-4",
-        name: "Narayana Health Bangalore",
-        specialization: "Cardiology",
-        hospitalName: "Narayana Institute of Cardiac Sciences",
-        hospitalAddress: "258/A, Bommasandra Industrial Area, Bangalore - 560099",
-        lat: 12.8167,
-        lng: 77.6822,
-        state: "Karnataka",
-        district: "Bangalore Urban",
-        village: "Electronic City",
-        isVerified: true,
-        type: "Government"
-    },
-    {
-        id: "pvt-5",
-        name: "Kokilaben Ambani Hospital",
-        specialization: "Multi-specialty",
-        hospitalName: "Kokilaben Dhirubhai Ambani Hospital",
-        hospitalAddress: "Four Bungalows, Andheri West, Mumbai - 400053",
-        lat: 19.1320,
-        lng: 72.8260,
-        state: "Maharashtra",
-        district: "Mumbai",
-        village: "Andheri",
-        isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 0,
+        contact: "011-23236000",
+        bio: "A major tertiary care hospital under the Delhi Government, catering to a vast population with state-of-the-art facilities.",
+        notableDoctors: [
+            { name: "Dr. Suresh Kumar", role: "Internal Medicine" },
+            { name: "Dr. B.L. Sherwal", role: "Administration" }
+        ]
     },
     {
         id: "pvt-6",
-        name: "Max Super Speciality Hospital",
+        name: "Max Super Speciality Saket",
         specialization: "Multi-specialty",
         hospitalName: "Max Super Speciality Hospital Saket",
         hospitalAddress: "1, 2, Press Enclave Road, Saket, New Delhi - 110017",
@@ -385,7 +172,14 @@ export const governmentHospitals = [
         district: "South Delhi",
         village: "Saket",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 800,
+        contact: "011-26515050",
+        bio: "A leading private multispecialty hospital known for its expertise in cardiac sciences and oncology.",
+        notableDoctors: [
+            { name: "Dr. Balbir Singh", role: "Cardiology" },
+            { name: "Dr. Harit Chaturvedi", role: "Oncology" }
+        ]
     },
     {
         id: "pvt-7",
@@ -399,7 +193,14 @@ export const governmentHospitals = [
         district: "Bangalore Urban",
         village: "Indiranagar",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 950,
+        contact: "080-22221111",
+        bio: "A flagship tertiary care facility offering patient-centric healthcare and advanced diagnostic services.",
+        notableDoctors: [
+            { name: "Dr. Sudarshan Ballal", role: "Nephrology" },
+            { name: "Dr. H. Sudarshan", role: "Public Health" }
+        ]
     },
     {
         id: "pvt-8",
@@ -413,7 +214,14 @@ export const governmentHospitals = [
         district: "Mumbai",
         village: "Bandra",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 1200,
+        contact: "022-26751000",
+        bio: "A premier multi-specialty tertiary care hospital in Mumbai providing compassionate care with advanced technology.",
+        notableDoctors: [
+            { name: "Dr. V. Ravishankar", role: "CEO" },
+            { name: "Dr. Shashank Joshi", role: "Endocrinology" }
+        ]
     },
     {
         id: "pvt-9",
@@ -427,7 +235,14 @@ export const governmentHospitals = [
         district: "Mumbai",
         village: "Dadar",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 0,
+        contact: "022-24177000",
+        bio: "The premier cancer center of India, specialized in cancer treatment, research, and education.",
+        notableDoctors: [
+            { name: "Dr. R.A. Badwe", role: "Surgical Oncology" },
+            { name: "Dr. Pankaj Chaturvedi", role: "Head & Neck Surgery" }
+        ]
     },
     {
         id: "pvt-10",
@@ -441,7 +256,14 @@ export const governmentHospitals = [
         district: "Central Delhi",
         village: "Connaught Place",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 1000,
+        contact: "011-25750000",
+        bio: "A multi-speciality state-of-the-art hospital known for providing comprehensive healthcare services in Delhi.",
+        notableDoctors: [
+            { name: "Dr. D.S. Rana", role: "Nephrology" },
+            { name: "Dr. S.P. Byotra", role: "Medicine" }
+        ]
     },
     {
         id: "pvt-11",
@@ -455,7 +277,14 @@ export const governmentHospitals = [
         district: "Pune",
         village: "Shivajinagar",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 700,
+        contact: "020-66455100",
+        bio: "Pune's first externally accredited multi-specialty hospital providing high-quality healthcare for over 50 years.",
+        notableDoctors: [
+            { name: "Dr. Purvez Grant", role: "Cardiology" },
+            { name: "Dr. Sanjay Deshmukh", role: "Surgery" }
+        ]
     },
     {
         id: "pvt-12",
@@ -469,7 +298,14 @@ export const governmentHospitals = [
         district: "Faridabad",
         village: "Faridabad",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 600,
+        contact: "0129-2811234",
+        bio: "A 2,600-bed multi-specialty hospital providing world-class infrastructure and advanced medical care.",
+        notableDoctors: [
+            { name: "Dr. Sanjeev Singh", role: "Medical Director" },
+            { name: "Dr. Prem Nair", role: "Gastroenterology" }
+        ]
     },
     {
         id: "pvt-13",
@@ -483,7 +319,14 @@ export const governmentHospitals = [
         district: "Hyderabad",
         village: "Hyderabad",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 750,
+        contact: "040-44885000",
+        bio: "One of the largest corporate healthcare groups in AP and Telangana providing quaternary care.",
+        notableDoctors: [
+            { name: "Dr. Bhaskar Rao", role: "Cardiothoracic Surgery" },
+            { name: "Dr. B. Abhinay", role: "CEO" }
+        ]
     },
     {
         id: "pvt-14",
@@ -497,7 +340,14 @@ export const governmentHospitals = [
         district: "Bangalore Urban",
         village: "Koramangala",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 850,
+        contact: "080-43420100",
+        bio: "A luxury multi-specialty hospital with state-of-the-art facilities and a focused patient care approach.",
+        notableDoctors: [
+            { name: "Dr. Nitish Shetty", role: "CEO" },
+            { name: "Dr. Rajiv Lochan", role: "Liver Transplant" }
+        ]
     },
     {
         id: "pvt-15",
@@ -511,6 +361,13 @@ export const governmentHospitals = [
         district: "Mumbai",
         village: "Colaba",
         isVerified: true,
-        type: "Government"
+        type: "Government",
+        consultationFee: 1100,
+        contact: "022-61784444",
+        bio: "A center of excellence in cardiac care providing comprehensive cardiovascular treatment and surgeries.",
+        notableDoctors: [
+            { name: "Dr. Clive Fernandes", role: "Group Hospital Operations" },
+            { name: "Dr. Suresh Joshi", role: "Cardiac Surgery" }
+        ]
     }
 ];

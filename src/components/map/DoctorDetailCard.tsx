@@ -14,6 +14,7 @@ import {
   User,
   Info,
   Users,
+  Phone,
 } from 'lucide-react';
 
 // Availability structure for day-level schedule
@@ -48,6 +49,8 @@ interface DoctorData {
   district?: string;
   village?: string;
   type?: string;
+  contact?: string;
+  notableDoctors?: { name: string; role: string }[];
 }
 
 interface DoctorDetailCardProps {
@@ -294,9 +297,20 @@ function HospitalCard({
             <IndianRupee className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
               <p className="text-xs text-muted-foreground">Consultation</p>
-              <p className="font-semibold text-green-600">Free (Government)</p>
+              <p className={`font-semibold ${hospital.consultationFee === 0 ? 'text-green-600' : ''}`}>
+                {hospital.consultationFee === 0 ? 'Free (Government)' : `₹${hospital.consultationFee}`}
+              </p>
             </div>
           </div>
+          {hospital.contact && (
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="text-xs text-muted-foreground">Contact Number</p>
+                <p className="font-semibold">{hospital.contact}</p>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-sm">
             <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
@@ -305,6 +319,37 @@ function HospitalCard({
             </div>
           </div>
         </div>
+
+        {/* ── Bio ── */}
+        {hospital.bio && (
+          <div className="border-t pt-3">
+            <p className="text-sm font-semibold mb-1">📝 About Hospital</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{hospital.bio}</p>
+          </div>
+        )}
+
+        {/* ── Notable Staff (Static Data) ── */}
+        {hospital.notableDoctors && hospital.notableDoctors.length > 0 && (
+          <div className="border-t pt-3">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-semibold">Notable Staff</p>
+            </div>
+            <div className="space-y-2">
+              {hospital.notableDoctors.map((staff, idx) => (
+                <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/30">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-blue-600 dark:text-blue-300" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{staff.name}</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 truncate">{staff.role}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Doctors at this Hospital ── */}
         <div className="border-t pt-3">

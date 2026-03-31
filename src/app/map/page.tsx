@@ -81,6 +81,7 @@ interface Doctor {
   consultationFee?: number;
   experience?: number | string;
   bio?: string;
+  notableDoctors?: { name: string; role: string }[];
 }
 
 // Helper to convert Doctor to the shape used by the UI (combining doctor & hospital info)
@@ -187,11 +188,13 @@ export default function MapPage() {
         // Add government hospitals to the list
         const govHospitalsMapped = governmentHospitals.map(h => ({
           ...h,
-          contact: "0000000000", // Default contact for hospitals
+          contact: h.contact || "0000000000",
           email: "info@gov.in",
           address: h.hospitalAddress || "Government Hospital",
           availability: { dates: [], timeSlots: [] },
-          type: 'Government' // Explicitly mark as Government
+          type: 'Government',
+          bio: h.bio || "",
+          notableDoctors: h.notableDoctors || []
         })) as MapItem[];
 
         setDoctors([...fetchedDoctors, ...govHospitalsMapped]);
