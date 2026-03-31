@@ -42,12 +42,12 @@ const bookingSchema = z.object({
 
 type FilterValues = z.infer<typeof filterSchema>;
 type BookingValues = z.infer<typeof bookingSchema>;
-type Initiative = (typeof translations.en.services.initiatives)[0] & { icon: ReactNode };
+type Initiative = (typeof translations.en.governmentSchemes.initiatives)[0] & { icon: ReactNode };
 
-export default function ServicesPage() {
+export default function GovernmentSchemesPage() {
   const { language } = useChatLanguage();
   const { toast } = useToast();
-  const t = translations[language].services;
+  const t = translations[language].governmentSchemes;
 
   const [filteredInitiatives, setFilteredInitiatives] = useState<Initiative[]>([]);
   const [isFilterActive, setIsFilterActive] = useState(false);
@@ -179,28 +179,28 @@ export default function ServicesPage() {
             <CardHeader>
             <CardTitle className="flex items-center gap-3">
                 <Search className="h-6 w-6 text-primary"/>
-                {t.myServicesTitle}
+                {t.mySchemesTitle}
             </CardTitle>
             <CardDescription>
-                {t.myServicesDescription}
+                {t.mySchemesDescription}
             </CardDescription>
             </CardHeader>
             <CardContent>
             <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
                 <DialogTrigger asChild>
-                <Button>{t.myServicesButton}</Button>
+                <Button>{t.mySchemesButton}</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>{t.myServicesFormTitle}</DialogTitle>
+                    <DialogTitle>{t.mySchemesFormTitle}</DialogTitle>
                 </DialogHeader>
                 <Form {...filterForm}>
                     <form onSubmit={filterForm.handleSubmit(onFilterSubmit)} className="space-y-6">
-                        <FormField control={filterForm.control} name="age" render={({ field }) => (<FormItem><FormLabel>{t.myServicesFormAge}</FormLabel><FormControl><Input type="number" placeholder="Your age" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={filterForm.control} name="gender" render={({ field }) => (<FormItem><FormLabel>{t.myServicesFormGender}</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="female" /></FormControl><FormLabel className="font-normal">{t.myServicesFormGenderFemale}</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="male" /></FormControl><FormLabel className="font-normal">{t.myServicesFormGenderMale}</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="other" /></FormControl><FormLabel className="font-normal">{t.myServicesFormGenderOther}</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={filterForm.control} name="state" render={({ field }) => (<FormItem><FormLabel>{t.myServicesFormState}</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select your state" /></SelectTrigger></FormControl><SelectContent>{states.map(state => (<SelectItem key={state.state} value={state.state}>{state.state}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
-                        <FormField control={filterForm.control} name="district" render={({ field }) => (<FormItem><FormLabel>{t.myServicesFormDistrict}</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}><FormControl><SelectTrigger><SelectValue placeholder={selectedState ? "Select your district" : "Select a state first"} /></SelectTrigger></FormControl><SelectContent>{districts.map(district => (<SelectItem key={district} value={district}>{district}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
-                        <Button type="submit">{t.myServicesFormSubmit}</Button>
+                        <FormField control={filterForm.control} name="age" render={({ field }) => (<FormItem><FormLabel>{t.mySchemesFormAge}</FormLabel><FormControl><Input type="number" placeholder="Your age" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={filterForm.control} name="gender" render={({ field }) => (<FormItem><FormLabel>{t.mySchemesFormGender}</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex space-x-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="female" /></FormControl><FormLabel className="font-normal">{t.mySchemesFormGenderFemale}</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="male" /></FormControl><FormLabel className="font-normal">{t.mySchemesFormGenderMale}</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="other" /></FormControl><FormLabel className="font-normal">{t.mySchemesFormGenderOther}</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={filterForm.control} name="state" render={({ field }) => (<FormItem><FormLabel>{t.mySchemesFormState}</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select your state" /></SelectTrigger></FormControl><SelectContent>{states.map(state => (<SelectItem key={state.state} value={state.state}>{state.state}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                        <FormField control={filterForm.control} name="district" render={({ field }) => (<FormItem><FormLabel>{t.mySchemesFormDistrict}</FormLabel><Select onValueChange={field.onChange} value={field.value} disabled={!selectedState}><FormControl><SelectTrigger><SelectValue placeholder={selectedState ? "Select your district" : "Select a state first"} /></SelectTrigger></FormControl><SelectContent>{districts.map(district => (<SelectItem key={district} value={district}>{district}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                        <Button type="submit">{t.mySchemesFormSubmit}</Button>
                     </form>
                 </Form>
                 </DialogContent>
@@ -210,8 +210,8 @@ export default function ServicesPage() {
         
         {isFilterActive && (
             <div className="mb-8 flex justify-between items-center">
-                <h2 className="text-xl font-bold font-headline">{t.myServicesResultsTitle}</h2>
-                <Button variant="outline" onClick={handleResetFilters}>{t.myServicesResetButton}</Button>
+                <h2 className="text-xl font-bold font-headline">{t.mySchemesResultsTitle}</h2>
+                <Button variant="outline" onClick={handleResetFilters}>{t.mySchemesResetButton}</Button>
             </div>
         )}
 
@@ -232,7 +232,7 @@ export default function ServicesPage() {
                 </a>
             ))}
             {isFilterActive && displayedInitiatives.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">{t.myServicesNoResults}</p>
+                <p className="text-center text-muted-foreground py-8">{t.mySchemesNoResults}</p>
             )}
         </div>
 

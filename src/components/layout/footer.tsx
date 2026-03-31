@@ -12,7 +12,7 @@ export function Footer() {
   const navItems = [
     { href: '/health-guide', label: t.nav.home },
     { href: '/chatbot', label: t.nav.chatbot },
-    { href: '/services', label: t.nav.services },
+    { href: '/government-schemes', label: t.nav.schemes },
     { href: '/map', label: t.nav.map },
     { href: '/about', label: t.nav.about },
     { href: '/contact', label: t.nav.contact },
