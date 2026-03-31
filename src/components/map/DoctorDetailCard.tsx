@@ -16,6 +16,8 @@ import {
   Users,
   Phone,
 } from 'lucide-react';
+import { useChatLanguage } from '@/hooks/use-chat-language';
+import { translations } from '@/lib/translations';
 
 // Availability structure for day-level schedule
 interface DaySchedule {
@@ -66,6 +68,9 @@ function getTodayDayName(): string {
 
 // ─── Placeholder Card ──────────────────────────────────────
 function PlaceholderCard() {
+  const { language } = useChatLanguage();
+  const t = translations[language].map;
+
   return (
     <Card className="rounded-xl border shadow-sm h-full">
       <CardContent className="flex flex-col items-center justify-center h-full min-h-[300px] text-center p-8">
@@ -73,10 +78,10 @@ function PlaceholderCard() {
           <MapPin className="h-8 w-8 text-gray-400" />
         </div>
         <p className="text-gray-500 dark:text-gray-400 font-medium text-lg mb-1">
-          Select a doctor or hospital
+          {t.placeholder.select}
         </p>
         <p className="text-gray-400 dark:text-gray-500 text-sm">
-          from the map to view details before booking
+          {t.placeholder.viewDetails}
         </p>
       </CardContent>
     </Card>
@@ -85,6 +90,9 @@ function PlaceholderCard() {
 
 // ─── Doctor Detail Card ────────────────────────────────────
 function DoctorCard({ doctor }: { doctor: DoctorData }) {
+  const { language } = useChatLanguage();
+  const t = translations[language].map;
+
   const today = getTodayDayName();
   const displayName = doctor.fullName || doctor.name || 'Unknown Doctor';
   const firstInitial = displayName.charAt(0).toUpperCase();
@@ -97,7 +105,7 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
   })();
 
   const fee = doctor.consultationFee;
-  const feeDisplay = (!fee || fee === 0) ? 'Free Consultation' : `₹${fee}`;
+  const feeDisplay = (!fee || fee === 0) ? t.doctorCard.free : `₹${fee}`;
 
   const clinicAddr = doctor.clinicAddress || doctor.hospitalAddress || doctor.address || '';
 
@@ -117,14 +125,14 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold truncate">Dr. {displayName}</h3>
+              <h3 className="text-lg font-bold truncate">{language === 'en' ? 'Dr.' : language === 'hi' ? 'डॉ.' : 'डॉ.'} {displayName}</h3>
               {doctor.isVerified && (
                 <Star className="h-5 w-5 text-yellow-400 fill-yellow-400 shrink-0" />
               )}
             </div>
             {doctor.isVerified && (
               <Badge className="bg-green-100 text-green-700 hover:bg-green-100 mt-1">
-                <CheckCircle className="h-3 w-3 mr-1" /> Verified Doctor
+                <CheckCircle className="h-3 w-3 mr-1" /> {t.doctorCard.verified}
               </Badge>
             )}
             {doctor.specialization && (
@@ -157,7 +165,7 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
           <div className="flex items-center gap-2 text-sm">
             <IndianRupee className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
-              <p className="text-xs text-muted-foreground">Consultation Fee</p>
+              <p className="text-xs text-muted-foreground">{t.doctorCard.fee}</p>
               <p className="font-semibold">{feeDisplay}</p>
             </div>
           </div>
@@ -165,8 +173,8 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
             <div className="flex items-center gap-2 text-sm">
               <Stethoscope className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <p className="text-xs text-muted-foreground">Experience</p>
-                <p className="font-semibold">{doctor.experience} yrs</p>
+                <p className="text-xs text-muted-foreground">{t.doctorCard.exp}</p>
+                <p className="font-semibold">{doctor.experience} {t.doctorCard.years}</p>
               </div>
             </div>
           )}
@@ -177,7 +185,7 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
           <div className="border-t pt-3">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-semibold">Availability</p>
+              <p className="text-sm font-semibold">{t.doctorCard.availability}</p>
             </div>
             <div className="space-y-1">
               {DAYS_OF_WEEK.map((day) => {
@@ -192,7 +200,7 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
                       isToday ? 'bg-blue-50 dark:bg-blue-900/20 rounded px-2 font-medium' : 'px-2'
                     }`}
                   >
-                    <span className="w-24">{day.slice(0, 3)}</span>
+                    <span className="w-24">{(t.days as any)[day]?.slice(0, 3)}</span>
                     {isOpen ? (
                       <>
                         <span className="flex-1 text-center">
@@ -200,7 +208,7 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
                         </span>
                         <span className="flex items-center gap-1 text-green-600 text-xs">
                           <span className="w-2 h-2 rounded-full bg-green-500 inline-block mr-1" />
-                          Open
+                          {t.doctorCard.open}
                         </span>
                       </>
                     ) : (
@@ -208,7 +216,7 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
                         <span className="flex-1 text-center text-gray-400">—</span>
                         <span className="flex items-center gap-1 text-gray-400 text-xs">
                           <span className="w-2 h-2 rounded-full bg-gray-300 inline-block mr-1" />
-                          Closed
+                          {t.doctorCard.closed}
                         </span>
                       </>
                     )}
@@ -222,7 +230,7 @@ function DoctorCard({ doctor }: { doctor: DoctorData }) {
         {/* ── Bio ── */}
         {doctor.bio && (
           <div className="border-t pt-3">
-            <p className="text-sm font-semibold mb-1">📝 About</p>
+            <p className="text-sm font-semibold mb-1">📝 {t.doctorCard.about}</p>
             <p className="text-sm text-muted-foreground leading-relaxed">{doctor.bio}</p>
           </div>
         )}
@@ -239,6 +247,9 @@ function HospitalCard({
   hospital: DoctorData;
   affiliatedDoctors: DoctorData[];
 }) {
+  const { language } = useChatLanguage();
+  const t = translations[language].map;
+
   return (
     <Card className="rounded-xl border shadow-sm max-h-[600px] overflow-y-auto">
       <CardContent className="p-5 space-y-4">
@@ -253,7 +264,7 @@ function HospitalCard({
               <Star className="h-5 w-5 text-yellow-400 fill-yellow-400 shrink-0" />
             </div>
             <Badge className="bg-green-100 text-green-700 hover:bg-green-100 mt-1">
-              <CheckCircle className="h-3 w-3 mr-1" /> Government Verified Hospital
+              <CheckCircle className="h-3 w-3 mr-1" /> {t.hospitalCard.verified}
             </Badge>
           </div>
         </div>
@@ -289,16 +300,16 @@ function HospitalCard({
           <div className="flex items-center gap-2 text-sm">
             <Stethoscope className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
-              <p className="text-xs text-muted-foreground">Specialization</p>
-              <p className="font-semibold">{hospital.specialization || 'General'}</p>
+              <p className="text-xs text-muted-foreground">{t.hospitalCard.specialization}</p>
+              <p className="font-semibold">{hospital.specialization || (language === 'en' ? 'General' : language === 'hi' ? 'सामान्य' : 'सामान्य')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <IndianRupee className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
-              <p className="text-xs text-muted-foreground">Consultation</p>
+              <p className="text-xs text-muted-foreground">{t.hospitalCard.consultation}</p>
               <p className={`font-semibold ${hospital.consultationFee === 0 ? 'text-green-600' : ''}`}>
-                {hospital.consultationFee === 0 ? 'Free (Government)' : `₹${hospital.consultationFee}`}
+                {hospital.consultationFee === 0 ? t.hospitalCard.freeGov : `₹${hospital.consultationFee}`}
               </p>
             </div>
           </div>
@@ -306,7 +317,7 @@ function HospitalCard({
             <div className="flex items-center gap-2 text-sm">
               <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <p className="text-xs text-muted-foreground">Contact Number</p>
+                <p className="text-xs text-muted-foreground">{t.hospitalCard.contact}</p>
                 <p className="font-semibold">{hospital.contact}</p>
               </div>
             </div>
@@ -314,8 +325,8 @@ function HospitalCard({
           <div className="flex items-center gap-2 text-sm">
             <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
             <div>
-              <p className="text-xs text-muted-foreground">Type</p>
-              <p className="font-semibold">Government Hospital</p>
+              <p className="text-xs text-muted-foreground">{t.hospitalCard.typeLabel}</p>
+              <p className="font-semibold">{t.hospitalCard.govHospital}</p>
             </div>
           </div>
         </div>
@@ -323,7 +334,7 @@ function HospitalCard({
         {/* ── Bio ── */}
         {hospital.bio && (
           <div className="border-t pt-3">
-            <p className="text-sm font-semibold mb-1">📝 About Hospital</p>
+            <p className="text-sm font-semibold mb-1">📝 {t.hospitalCard.aboutHospital}</p>
             <p className="text-sm text-muted-foreground leading-relaxed">{hospital.bio}</p>
           </div>
         )}
@@ -333,7 +344,7 @@ function HospitalCard({
           <div className="border-t pt-3">
             <div className="flex items-center gap-2 mb-3">
               <Users className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-semibold">Notable Staff</p>
+              <p className="text-sm font-semibold">{t.hospitalCard.notableStaff}</p>
             </div>
             <div className="space-y-2">
               {hospital.notableDoctors.map((staff, idx) => (
@@ -356,7 +367,7 @@ function HospitalCard({
           <div className="flex items-center gap-2 mb-3">
             <Users className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-semibold">
-              Doctors at this Hospital ({affiliatedDoctors.length})
+              {t.hospitalCard.doctorsAtHospital.replace('{count}', affiliatedDoctors.length.toString())}
             </p>
           </div>
           {affiliatedDoctors.length > 0 ? (
@@ -381,9 +392,9 @@ function HospitalCard({
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate">Dr. {docName}</p>
+                      <p className="text-sm font-semibold truncate">{language === 'en' ? 'Dr.' : language === 'hi' ? 'डॉ.' : 'डॉ.'} {docName}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {doc.specialization || 'General Physician'}
+                        {doc.specialization || (language === 'en' ? 'General Physician' : language === 'hi' ? 'सामान्य चिकित्सक' : 'सामान्य चिकित्सक')}
                       </p>
                     </div>
                     {doc.isVerified && (
@@ -395,7 +406,7 @@ function HospitalCard({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-2">
-              No registered doctors found at this hospital yet.
+              {t.hospitalCard.noDoctorsFound}
             </p>
           )}
         </div>
@@ -404,7 +415,7 @@ function HospitalCard({
         <div className="border-t pt-3">
           <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-sm text-blue-700 dark:text-blue-300">
             <Info className="h-4 w-4 mt-0.5 shrink-0" />
-            <p>Appointment type for government hospitals is In-Person visit only.</p>
+            <p>{t.hospitalCard.inPersonOnly}</p>
           </div>
         </div>
       </CardContent>

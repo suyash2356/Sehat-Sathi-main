@@ -47,11 +47,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { useChatLanguage } from '@/hooks/use-chat-language';
+import { translations } from '@/lib/translations';
 
 export function MyRequestsTab() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const { language } = useChatLanguage();
+  const t = translations[language].map.requests;
 
   const [appointments, setAppointments] = useState<any[]>([]);
   const [activeSession, setActiveSession] = useState<any | null>(null);
@@ -163,12 +167,12 @@ export function MyRequestsTab() {
         });
       }
 
-      toast({ title: "Appointment cancelled successfully." });
-      setCancelId(null);
-    } catch (err) {
-      console.error('Failed to cancel appointment', err);
-      toast({ title: "Failed to cancel. Please try again.", variant: "destructive" });
-    } finally {
+        toast({ title: t.cancelDialog.cancelButton + " successfully." }); // Could be better but mostly used for title
+        setCancelId(null);
+      } catch (err) {
+        console.error('Failed to cancel appointment', err);
+        toast({ title: "Failed to cancel. Please try again.", variant: "destructive" });
+      } finally {
       setIsCancelling(false);
     }
   };
@@ -179,16 +183,16 @@ export function MyRequestsTab() {
       ? scheduledTime.toDate()
       : new Date(scheduledTime);
     const diff = time.getTime() - now.getTime();
-    if (diff < 0) return 'Overdue / Happening Now';
+    if (diff < 0) return t.overdue;
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
     const mins = Math.floor((diff / 1000 / 60) % 60);
 
-    if (days > 0) return `Starts in ${days}d ${hours}h`;
-    if (hours > 0) return `Starts in ${hours}h ${mins}m`;
-    if (mins <= 5) return 'Starting soon';
-    return `Starts in ${mins}m`;
+    if (days > 0) return t.startsIn.replace('{time}', `${days}d ${hours}h`);
+    if (hours > 0) return t.startsIn.replace('{time}', `${hours}h ${mins}m`);
+    if (mins <= 5) return t.startingSoon;
+    return t.startsIn.replace('{time}', `${mins}m`);
   };
 
   const filteredAppointments = appointments.filter((app) => {
@@ -215,13 +219,13 @@ export function MyRequestsTab() {
               <LogIn className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold">Please log in</h3>
+              <h3 className="text-lg font-bold">{t.loginPrompt}</h3>
               <p className="text-sm text-slate-500">
-                You need to be logged in to view your booking requests.
+                {t.loginDesc}
               </p>
             </div>
             <Button asChild className="w-full">
-              <Link href="/patient/login">Login / Sign up</Link>
+              <Link href="/patient/login">{t.loginButton}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -245,10 +249,10 @@ export function MyRequestsTab() {
             </div>
             <div>
               <h3 className="font-bold text-lg">
-                Your call with Dr. {activeSession.doctorName} is live
+                {t.callLive.replace('{name}', activeSession.doctorName)}
               </h3>
               <p className="text-sm text-green-700/80">
-                The doctor is waiting for you to join the session.
+                {t.doctorWaiting}
               </p>
             </div>
           </div>
@@ -257,7 +261,7 @@ export function MyRequestsTab() {
             className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold uppercase tracking-wider animate-pulse shadow-lg"
             onClick={() => router.push(`/video-call?sessionId=${activeSession.id}`)}
           >
-            Join Call →
+            {t.joinCall}
           </Button>
         </div>
       )}
@@ -271,10 +275,10 @@ export function MyRequestsTab() {
             </div>
             <div>
               <h3 className="text-xl font-bold text-slate-700">
-                No booking requests yet
+                {t.noRequests}
               </h3>
               <p className="text-slate-500 mt-2">
-                Find a doctor on the map and book your first appointment.
+                {t.noRequestsDesc}
               </p>
             </div>
             <Button
@@ -286,7 +290,7 @@ export function MyRequestsTab() {
                 if (mapTab) mapTab.click();
               }}
             >
-              Find a Doctor
+              {t.findDoctorButton}
             </Button>
           </div>
         </div>
@@ -295,18 +299,18 @@ export function MyRequestsTab() {
       {/* ─── UI Section 2.5: Filters ─── */}
       {appointments.length > 0 && (
         <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-200">
-          <span className="text-sm font-medium text-slate-500 pl-2">Filter Requests:</span>
+          <span className="text-sm font-medium text-slate-500 pl-2">{t.filterLabel}</span>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="All Requests" />
+              <SelectValue placeholder={t.allRequests} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Every Request</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="accepted">Accepted & Scheduled</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="rejected">Declined</SelectItem>
+              <SelectItem value="all">{t.everyRequest}</SelectItem>
+              <SelectItem value="pending">{t.pending}</SelectItem>
+              <SelectItem value="accepted">{t.accepted}</SelectItem>
+              <SelectItem value="completed">{t.completed}</SelectItem>
+              <SelectItem value="cancelled">{t.cancelled}</SelectItem>
+              <SelectItem value="rejected">{t.declined}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -315,35 +319,35 @@ export function MyRequestsTab() {
       {/* ─── UI Section 2: Appointment Cards ─── */}
       <div className="grid gap-4">
         {filteredAppointments.length === 0 && appointments.length > 0 ? (
-           <div className="text-center py-8 text-slate-500 border border-dashed rounded-xl bg-slate-50">No appointment history matches the selected filter status.</div>
+           <div className="text-center py-8 text-slate-500 border border-dashed rounded-xl bg-slate-50">{t.noFilterMatch}</div>
         ) : filteredAppointments.map((app) => {
           const isUpcoming =
             app.status === 'pending' || app.status === 'accepted';
           
           let BadgeIcon = AlertCircle;
           let badgeColors = 'bg-yellow-100 text-yellow-800 border-yellow-200';
-          let badgeText = '⏳ Awaiting Response';
+          let badgeText = t.status.awaiting;
 
           if (app.status === 'accepted') {
             BadgeIcon = CheckCircle2;
             badgeColors = 'bg-blue-100 text-blue-800 border-blue-200';
-            badgeText = '✅ Confirmed';
+            badgeText = t.status.confirmed;
           } else if (app.status === 'in_call') {
             BadgeIcon = Video;
             badgeColors = 'bg-green-100 text-green-800 border-green-300 animate-pulse';
-            badgeText = '🔴 Call In Progress';
+            badgeText = t.status.inCall;
           } else if (app.status === 'completed') {
             BadgeIcon = CheckCircle2;
             badgeColors = 'bg-slate-100 text-slate-600 border-slate-200';
-            badgeText = '✔ Completed';
+            badgeText = t.status.completed;
           } else if (app.status === 'rejected') {
             BadgeIcon = XCircle;
             badgeColors = 'bg-red-100 text-red-800 border-red-200';
-            badgeText = '✖ Declined';
+            badgeText = t.status.declined;
           } else if (app.status === 'cancelled') {
             BadgeIcon = XCircle;
             badgeColors = 'bg-slate-100 text-slate-500 border-slate-200';
-            badgeText = '✖ Cancelled';
+            badgeText = t.status.cancelled;
           }
 
           const rx = prescriptions.find((p) => p.appointmentId === app.id);
@@ -360,9 +364,9 @@ export function MyRequestsTab() {
                   <div className="flex-1 p-5 space-y-4">
                     <div className="flex justify-between items-start gap-4">
                       <div>
-                        <h3 className="text-lg font-bold">Dr. {app.doctorName || 'Doctor'}</h3>
+                        <h3 className="text-lg font-bold">{(language === 'en' ? 'Dr. ' : 'डॉ. ') + (app.doctorName || 'Doctor')}</h3>
                         <p className="text-sm text-slate-500">
-                           {(app as any).doctorSpecialization || 'Specialist'} 
+                           {(app as any).doctorSpecialization || t.specialist} 
                            {(app as any).hospitalName ? ` · ${(app as any).hospitalName}` : ''}
                         </p>
                       </div>
@@ -380,7 +384,7 @@ export function MyRequestsTab() {
                         ) : (
                           <Video className="w-4 h-4 text-emerald-500" />
                         )}
-                        <span className="capitalize">{app.mode || 'video'} Call</span>
+                        <span className="capitalize">{language === 'en' ? (app.mode || 'video') + " Call" : (app.mode === 'visit' ? 'थेट भेट' : app.mode === 'voice' ? 'व्हॉइस कॉल' : 'व्हिडिओ कॉल')}</span>
                       </div>
                       
                       <div className="flex items-center gap-2 text-slate-700">
@@ -394,7 +398,7 @@ export function MyRequestsTab() {
                                 dateStyle: 'medium',
                                 timeStyle: 'short',
                               })
-                            : 'Immediate (Call Now)'}
+                            : t.immediate}
                         </span>
                       </div>
 
@@ -414,7 +418,7 @@ export function MyRequestsTab() {
                         className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                         onClick={() => handleCancelClick(app.id)}
                       >
-                        {app.status === 'pending' ? 'Cancel Request' : 'Cancel'}
+                        {app.status === 'pending' ? t.cancelRequest : t.cancel}
                       </Button>
                     ) : app.status === 'in_call' ? (
                       <Button
@@ -435,7 +439,7 @@ export function MyRequestsTab() {
                           }
                         }}
                       >
-                        {rx ? 'View Prescription' : 'Prescription Pending'}
+                        {rx ? t.viewPrescription : t.prescriptionPending}
                       </Button>
                     ) : null}
                   </div>
@@ -449,29 +453,29 @@ export function MyRequestsTab() {
       <Dialog open={!!cancelId} onOpenChange={(open) => !open && setCancelId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Appointment</DialogTitle>
+            <DialogTitle>{t.cancelDialog.title}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to cancel your appointment with Dr. {appointments.find(a => a.id === cancelId)?.doctorName}?
+              {t.cancelDialog.description.replace('{name}', appointments.find(a => a.id === cancelId)?.doctorName || 'Doctor')}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <label className="text-sm font-medium mb-2 block">Reason for cancellation *</label>
+            <label className="text-sm font-medium mb-2 block">{t.cancelDialog.reasonLabel}</label>
             <Textarea 
-              placeholder="Please write your reason here..." 
+              placeholder={t.cancelDialog.reasonPlaceholder} 
               value={cancelReason}
               onChange={(e) => setCancelReason(e.target.value)}
               className="resize-none h-24"
             />
-            <p className="text-xs text-muted-foreground mt-2">(min 10 characters, required)</p>
+            <p className="text-xs text-muted-foreground mt-2">{t.cancelDialog.requiredNote}</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelId(null)} disabled={isCancelling}>Keep Appointment</Button>
+            <Button variant="outline" onClick={() => setCancelId(null)} disabled={isCancelling}>{t.cancelDialog.keepButton}</Button>
             <Button 
               className="bg-red-600 hover:bg-red-700 text-white" 
               onClick={confirmCancel}
               disabled={cancelReason.length < 10 || isCancelling}
             >
-              {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancel Appointment"}
+              {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : t.cancelDialog.cancelButton}
             </Button>
           </DialogFooter>
         </DialogContent>

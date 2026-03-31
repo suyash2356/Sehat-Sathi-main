@@ -36,26 +36,10 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { MyRequestsTab } from '@/components/patient/MyRequestsTab';
+import { useChatLanguage } from '@/hooks/use-chat-language';
+import { translations } from '@/lib/translations';
 
 const libraries: ("places" | "drawing" | "geometry" | "visualization")[] = ['places'];
-
-const bookingSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters."),
-  phone: z.string().regex(/^\d{10}$/, "Please enter a valid 10-digit phone number."),
-  issue: z.string().min(10, "Please describe your issue in at least 10 characters."),
-  age: z.coerce.number().min(1, "Age must be at least 1.").max(120, "Please enter a valid age."),
-  gender: z.enum(['male', 'female', 'other'], { required_error: "Please select a gender." }),
-  doctorName: z.string().optional(),
-  doctorId: z.string().optional(),
-  callType: z.enum(['video', 'voice', 'in-person'], { required_error: "Please select a call type." }),
-  callNow: z.boolean().default(false),
-  isPrivate: z.boolean().default(false),
-  appointmentDate: z.string().optional(),
-  appointmentTime: z.string().optional(),
-}).refine(data => {
-  if (!data.callNow) return !!data.appointmentDate && !!data.appointmentTime;
-  return true;
-}, { message: "Date and time are required for scheduled calls.", path: ["appointmentDate"] });
 
 interface Doctor {
   id: string; // The Firestore Document ID (uid)
@@ -97,6 +81,27 @@ import { DoctorDetailCard } from '@/components/map/DoctorDetailCard';
 // ... (imports remain same)
 
 export default function MapPage() {
+  const { language } = useChatLanguage();
+  const t = translations[language].map;
+
+  const bookingSchema = useMemo(() => z.object({
+    name: z.string().min(2, t.validation.nameMin),
+    phone: z.string().regex(/^\d{10}$/, t.validation.phoneInvalid),
+    issue: z.string().min(10, t.validation.issueMin),
+    age: z.coerce.number().min(1, t.validation.ageMin).max(120, t.validation.ageMax),
+    gender: z.enum(['male', 'female', 'other'], { required_error: t.validation.genderRequired }),
+    doctorName: z.string().optional(),
+    doctorId: z.string().optional(),
+    callType: z.enum(['video', 'voice', 'in-person'], { required_error: t.validation.callTypeRequired }),
+    callNow: z.boolean().default(false),
+    isPrivate: z.boolean().default(false),
+    appointmentDate: z.string().optional(),
+    appointmentTime: z.string().optional(),
+  }).refine(data => {
+    if (!data.callNow) return !!data.appointmentDate && !!data.appointmentTime;
+    return true;
+  }, { message: t.validation.dateTimeRequired, path: ["appointmentDate"] }), [t]);
+
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
     libraries,
@@ -201,7 +206,7 @@ export default function MapPage() {
 
       } catch (error) {
         console.error("Error fetching doctors:", error);
-        toast({ title: "Error", description: "Failed to load doctors.", variant: "destructive" });
+        toast({ title: t.error, description: "Failed to load doctors.", variant: "destructive" });
       } finally {
         setLoadingDoctors(false);
       }
@@ -290,12 +295,12 @@ export default function MapPage() {
 
   async function onBookingSubmit(values: z.infer<typeof bookingSchema>) {
     if (!selectedDoctor) {
-      toast({ title: "No Doctor Selected", description: "Please select a doctor/hospital before booking.", variant: "destructive" });
+      toast({ title: t.noDoctorSelected, description: t.noDoctorDesc, variant: "destructive" });
       return;
     }
 
     if (!user) {
-      toast({ title: "Login Required", description: "You must be logged in to book an appointment.", variant: "destructive" });
+      toast({ title: t.loginRequired, description: t.loginRequiredDesc, variant: "destructive" });
       return;
     }
 
@@ -324,12 +329,15 @@ export default function MapPage() {
         );
         const overlapSnap = await getDocs(qOverlap);
         if (!overlapSnap.empty) {
+        const overlapSnap = await getDocs(qOverlap);
+        if (!overlapSnap.empty) {
           toast({ 
-            title: 'Time Slot Unavailable', 
-            description: 'The doctor already has an appointment booked at this exact time. Please choose another time.', 
+            title: t.timeSlotUnavailable, 
+            description: t.timeSlotDesc, 
             variant: 'destructive' 
           });
           return; // Abort submission
+        }
         }
       } catch (err) {
         // Soft fail if index is missing or network error, let them book
@@ -368,21 +376,21 @@ export default function MapPage() {
       const docRef = await addDoc(collection(db, 'appointments'), bookingDetails);
 
       if (isCallNow) {
-        toast({ title: "Request Sent", description: "Your immediate call request has been sent. Please wait for the doctor to accept." });
+        toast({ title: t.requestSent, description: t.immediateSent });
         // Removed redirect to dashboard to keep user on map page
       } else {
-        toast({ title: "Request Sent", description: "Appointment scheduled. Waiting for doctor's approval." });
+        toast({ title: t.requestSent, description: t.scheduledSent });
         // Removed redirect to dashboard
         bookingForm.reset();
       }
     } catch (e) {
       console.error("Error creating appointment:", e);
-      toast({ title: "Error", description: "Failed to create appointment.", variant: "destructive" });
+      toast({ title: t.error, description: t.failedBooking, variant: "destructive" });
     }
   }
 
-  if (loadError) return <div>Error loading maps</div>;
-  if (!isLoaded) return <div>Loading Maps...</div>;
+  if (loadError) return <div>{language === 'en' ? 'Error loading maps' : language === 'hi' ? 'मानचित्र लोड करने में त्रुटि' : 'नकाशा लोड करताना त्रुटी'}</div>;
+  if (!isLoaded) return <div>{t.loading}</div>;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-4rem)]">
@@ -391,11 +399,11 @@ export default function MapPage() {
           <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto">
             <TabsTrigger value="map" className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              Find & Book
+              {t.findAndBook}
             </TabsTrigger>
             <TabsTrigger value="requests" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" />
-              My Requests
+              {t.myRequests}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -404,13 +412,13 @@ export default function MapPage() {
           <div className="grid md:grid-cols-4 flex-grow min-h-0">
         {/* Desktop sidebar */}
         <div className="col-span-1 p-4 bg-gray-100 dark:bg-gray-800 overflow-y-auto hidden md:block relative z-30">
-          <h2 className="text-xl font-bold mb-4">Find a Doctor</h2>
+          <h2 className="text-xl font-bold mb-4">{t.findADoctor}</h2>
 
           {/* Search Bar */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search doctor, hospital, village..."
+              placeholder={t.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-white dark:bg-gray-700"
@@ -428,34 +436,34 @@ export default function MapPage() {
           <div className="space-y-4">
             {/* State Filter */}
             <Select value={selectedState} onValueChange={setSelectedState}>
-              <SelectTrigger><SelectValue placeholder="Select State" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t.selectState} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All States</SelectItem>
+                <SelectItem value="all">{t.allStates}</SelectItem>
                 {availableStates.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
 
             {/* District Filter */}
             <Select value={selectedDistrict || ''} onValueChange={d => { setSelectedDistrict(d); setSelectedVillage(''); setSelectedDoctor(null); }}>
-              <SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t.selectDistrict} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Districts</SelectItem>
-                {availableDistricts.length > 0 ? availableDistricts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>) : <SelectItem value="none" disabled>Select State First</SelectItem>}
+                <SelectItem value="all">{t.allDistricts}</SelectItem>
+                {availableDistricts.length > 0 ? availableDistricts.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>) : <SelectItem value="none" disabled>{t.selectStateFirst}</SelectItem>}
               </SelectContent>
             </Select>
 
             {/* Village Filter */}
             <Select value={selectedVillage || ''} onValueChange={v => { setSelectedVillage(v); setSelectedDoctor(null); }}>
-              <SelectTrigger><SelectValue placeholder="Select Village" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t.selectVillage} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Villages</SelectItem>
-                {availableVillages.length > 0 ? availableVillages.map((v: string) => <SelectItem key={v} value={v}>{v}</SelectItem>) : <SelectItem value="none" disabled>Select District First</SelectItem>}
+                <SelectItem value="all">{t.allVillages}</SelectItem>
+                {availableVillages.length > 0 ? availableVillages.map((v: string) => <SelectItem key={v} value={v}>{v}</SelectItem>) : <SelectItem value="none" disabled>{t.selectDistrictFirst}</SelectItem>}
               </SelectContent>
             </Select>
           </div>
           <div className="mt-6">
-            <h3 className="font-bold">Doctors Found ({filteredDoctors.length})</h3>
-            {loadingDoctors ? <p>Loading...</p> : (
+            <h3 className="font-bold">{t.doctorsFound.replace('{count}', filteredDoctors.length.toString())}</h3>
+            {loadingDoctors ? <p>{t.loading}</p> : (
               <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
                 {filteredDoctors.map(doc => {
                   const available = isDoctorAvailable(doc);
@@ -465,13 +473,13 @@ export default function MapPage() {
                       onClick={() => { if (available) setSelectedDoctor(doc); }}
                       className={`p-2 rounded-md transition-all ${
                         !available
-                          ? 'opacity-40 cursor-not-allowed blur-[0.5px]'
-                          : selectedDoctor?.id === doc.id
-                            ? 'bg-blue-200 dark:bg-blue-800 cursor-pointer'
-                            : 'hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
-                      }`}
-                      title={!available ? 'Currently unavailable' : ''}
-                    >
+                            ? 'opacity-40 cursor-not-allowed blur-[0.5px]'
+                            : selectedDoctor?.id === doc.id
+                              ? 'bg-blue-200 dark:bg-blue-800 cursor-pointer'
+                              : 'hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
+                        }`}
+                        title={!available ? (language === 'en' ? 'Currently unavailable' : language === 'hi' ? 'वर्तमान में अनुपलब्ध' : 'सध्या उपलब्ध नाही') : ''}
+                      >
                       <div className="flex items-center gap-2">
                         {doc.type !== 'Government' && doc.profilePicture ? (
                           <img src={doc.profilePicture} alt={doc.name} className="h-8 w-8 rounded-full object-cover shrink-0" />
@@ -494,7 +502,7 @@ export default function MapPage() {
                           <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{doc.specialization} - {doc.hospitalName}</p>
                         </div>
                         {!available && (
-                          <span className="text-[10px] text-red-500 font-medium shrink-0">Offline</span>
+                          <span className="text-[10px] text-red-500 font-medium shrink-0">{t.offline}</span>
                         )}
                       </div>
                     </li>
@@ -509,7 +517,7 @@ export default function MapPage() {
         <div className="col-span-3 h-[50vh] md:h-full min-h-[200px] md:min-h-[400px] relative">
           {/* Mobile filter toggle */}
           <div className="absolute top-4 left-4 z-40 md:hidden">
-            <Button variant="secondary" size="sm" onClick={() => setMobileFiltersOpen(true)}>Filters</Button>
+            <Button variant="secondary" size="sm" onClick={() => setMobileFiltersOpen(true)}>{t.filters}</Button>
           </div>
 
           <GoogleMap mapContainerClassName="w-full h-full" center={mapCenter} zoom={10}>
@@ -561,15 +569,15 @@ export default function MapPage() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileFiltersOpen(false)} />
           <div className="absolute top-12 left-4 right-4 bg-white dark:bg-gray-800 rounded-lg p-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Filters</h2>
-              <Button variant="ghost" size="sm" onClick={() => setMobileFiltersOpen(false)}>Close</Button>
+              <h2 className="text-lg font-bold">{t.filters}</h2>
+              <Button variant="ghost" size="sm" onClick={() => setMobileFiltersOpen(false)}>{t.close}</Button>
             </div>
             <div className="space-y-4">
               {/* Mobile Search Bar */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search doctor, hospital, village..."
+                  placeholder={t.searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -592,8 +600,8 @@ export default function MapPage() {
                 </SelectContent>
               </Select>
               {/* Add other mobile filters similarly */}
-              <div className="mt-2">
-                <h3 className="font-bold">Doctors Found ({filteredDoctors.length})</h3>
+                  <div className="mt-2">
+                <h3 className="font-bold">{t.doctorsFound.replace('{count}', filteredDoctors.length.toString())}</h3>
                 <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
                   {filteredDoctors.map(doc => {
                     const available = isDoctorAvailable(doc);
@@ -627,7 +635,7 @@ export default function MapPage() {
                             <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{doc.specialization}</p>
                           </div>
                           {!available && (
-                            <span className="text-[10px] text-red-500 font-medium shrink-0">Offline</span>
+                            <span className="text-[10px] text-red-500 font-medium shrink-0">{t.offline}</span>
                           )}
                         </div>
                       </li>
@@ -648,16 +656,16 @@ export default function MapPage() {
           {/* Right Column: Booking Form */}
           <Card className="rounded-xl border shadow-sm">
           <CardHeader>
-            <CardTitle>Book Appointment</CardTitle>
+            <CardTitle>{t.bookAppointment}</CardTitle>
             {selectedDoctor ?
               <CardDescription className="flex items-center gap-1">
-                Booking with: <span className="font-bold text-primary">{selectedDoctor.name}</span>
+                {t.bookingWith} <span className="font-bold text-primary">{selectedDoctor.name}</span>
                 {selectedDoctor.verificationLevel === 3 && (
                   <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-50" />
                 )}
                 ({selectedDoctor.specialization})
               </CardDescription> :
-              <CardDescription>Select a doctor on the map to start booking.</CardDescription>
+              <CardDescription>{t.selectDoctorStart}</CardDescription>
             }
           </CardHeader>
           <CardContent>
@@ -665,50 +673,50 @@ export default function MapPage() {
               <form onSubmit={bookingForm.handleSubmit(onBookingSubmit)} className="space-y-4">
                 <fieldset disabled={!selectedDoctor} className="space-y-4">
                   <div className="grid sm:grid-cols-5 gap-4">
-                    <FormField control={bookingForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input placeholder="e.g., John Doe" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={bookingForm.control} name="age" render={({ field }) => (<FormItem><FormLabel>Age</FormLabel><FormControl><Input type="number" placeholder="25" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={bookingForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>{t.fullName}</FormLabel><FormControl><Input placeholder={t.fullNamePlaceholder} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={bookingForm.control} name="age" render={({ field }) => (<FormItem><FormLabel>{t.age}</FormLabel><FormControl><Input type="number" placeholder={t.agePlaceholder} {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={bookingForm.control} name="gender" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Gender</FormLabel>
+                        <FormLabel>{t.gender}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder={t.selectGender} /></SelectTrigger></FormControl>
                           <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="male">{t.male}</SelectItem>
+                            <SelectItem value="female">{t.female}</SelectItem>
+                            <SelectItem value="other">{t.other}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField control={bookingForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Phone</FormLabel><FormControl><Input placeholder="10-digit number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={bookingForm.control} name="issue" render={({ field }) => (<FormItem><FormLabel>Health Issue</FormLabel><FormControl><Input placeholder="Describe symptoms" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={bookingForm.control} name="phone" render={({ field }) => (<FormItem><FormLabel>{t.phone}</FormLabel><FormControl><Input placeholder={t.phonePlaceholder} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={bookingForm.control} name="issue" render={({ field }) => (<FormItem><FormLabel>{t.healthIssue}</FormLabel><FormControl><Input placeholder={t.issuePlaceholder} {...field} /></FormControl><FormMessage /></FormItem>)} />
                     {/* Hidden doctor ID field */}
                     <FormField control={bookingForm.control} name="doctorId" render={({ field }) => (<FormItem className="hidden"><FormControl><Input {...field} value={selectedDoctor?.id || ''} /></FormControl></FormItem>)} />
                   </div>
                   <div className="grid sm:grid-cols-3 gap-4 items-end">
                     <FormField control={bookingForm.control} name="callType" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Call Type</FormLabel>
+                        <FormLabel>{t.callType}</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                           disabled={selectedDoctor?.type === 'Government'} // Lock to in-person if government
                           value={selectedDoctor?.type === 'Government' ? 'in-person' : field.value}
                         >
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select call type" /></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder={t.selectCallType} /></SelectTrigger></FormControl>
                           <SelectContent>
                             {/* Conditionally render options */}
                             {selectedDoctor?.type !== 'Government' && (
                               <>
-                                <SelectItem value="video">Video Call</SelectItem>
-                                <SelectItem value="voice">Voice Call</SelectItem>
+                                <SelectItem value="video">{t.videoCall}</SelectItem>
+                                <SelectItem value="voice">{t.voiceCall}</SelectItem>
                               </>
                             )}
-                            <SelectItem value="in-person">In-Person</SelectItem>
+                            <SelectItem value="in-person">{t.inPerson}</SelectItem>
                           </SelectContent>
                         </Select>
-                        {selectedDoctor?.type === 'Government' && <p className="text-[10px] text-muted-foreground">Only in-person visits available.</p>}
+                        {selectedDoctor?.type === 'Government' && <p className="text-[10px] text-muted-foreground">{t.onlyInPerson}</p>}
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -723,8 +731,8 @@ export default function MapPage() {
                           />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel>Urgent: Call Now</FormLabel>
-                          {selectedDoctor?.type === 'Government' && <p className="text-[10px] text-red-500">Not available for hospitals</p>}
+                          <FormLabel>{t.urgentCall}</FormLabel>
+                          {selectedDoctor?.type === 'Government' && <p className="text-[10px] text-red-500">{t.notAvailableHospitals}</p>}
                         </div>
                       </FormItem>
                     )} />
@@ -735,22 +743,22 @@ export default function MapPage() {
                           <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                         <div className="space-y-1 leading-none">
-                          <FormLabel className="text-blue-700 dark:text-blue-300">Privacy Mode</FormLabel>
-                          <p className="text-[10px] text-blue-600/80">Doctor won't see your real name.</p>
+                          <FormLabel className="text-blue-700 dark:text-blue-300">{t.privacyMode}</FormLabel>
+                          <p className="text-[10px] text-blue-600/80">{t.privacySubtext}</p>
                         </div>
                       </FormItem>
                     )} />
                     {!callNow && (
                       <div className="grid grid-cols-2 gap-4">
-                        <FormField control={bookingForm.control} name="appointmentDate" render={({ field }) => (<FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={bookingForm.control} name="appointmentTime" render={({ field }) => (<FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={bookingForm.control} name="appointmentDate" render={({ field }) => (<FormItem><FormLabel>{t.date}</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={bookingForm.control} name="appointmentTime" render={({ field }) => (<FormItem><FormLabel>{t.time}</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
                       </div>
                     )}
                   </div>
                 </fieldset>
                 <div className="flex justify-end">
                   <Button type="submit" size="lg" disabled={!selectedDoctor || bookingForm.formState.isSubmitting}>
-                    {callNow ? (bookingForm.watch('callType') === 'in-person' ? 'Request Urgent Walk-in' : 'Start Emergency Call') : 'Schedule Appointment'}
+                    {callNow ? (bookingForm.watch('callType') === 'in-person' ? t.requestUrgent : t.startEmergency) : t.scheduleAppointment}
                   </Button>
                 </div>
               </form>
