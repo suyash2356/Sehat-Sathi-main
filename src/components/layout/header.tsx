@@ -293,7 +293,10 @@ export function Header() {
         </div>
 
         {/* CENTER */}
-        <Link href="/" className="font-bold text-xl">{t.appName}</Link>
+        <Link href="/" className="flex items-center gap-3 font-bold text-xl">
+          <img src="/logo.png" alt="Sehat Sathi Logo" className="h-14 w-14 object-contain" />
+          <span>{t.appName}</span>
+        </Link>
 
         {/* RIGHT */}
         <div className="flex flex-1 justify-end items-center gap-2">
